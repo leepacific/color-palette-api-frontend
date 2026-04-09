@@ -1,8 +1,8 @@
 {
-  "state": "fail",
+  "state": "failed",
   "judgment": "FAIL",
   "judge": "Frontend Guard QA Director",
-  "timestamp": "2026-04-09T07:00:00Z",
+  "timestamp": "2026-04-09T06:16:31Z",
   "sprint": 1,
   "loop": 4,
   "mode": "A",
@@ -19,9 +19,18 @@
   "backend_contract_status": "resolved",
   "senior_designer_test": "fail_on_a11y",
   "fix_requests_path": "handoff/guard-to-works/fix-requests.md",
-  "loop_4_resolved": ["FR-6"],
-  "loop_4_new_serious": ["FR-7", "FR-8", "FR-9", "FR-10"],
-  "loop_4_new_moderate": ["FR-11"],
+  "loop_4_resolved": [
+    "FR-6"
+  ],
+  "loop_4_new_serious": [
+    "FR-7",
+    "FR-8",
+    "FR-9",
+    "FR-10"
+  ],
+  "loop_4_new_moderate": [
+    "FR-11"
+  ],
   "loop_4_callbacks": [],
   "release_blocker": "Four serious WCAG AA violations surfaced by first-ever axe-core scan (run in Loop 4 to adjudicate button-in-button). FR-7 nested-interactive (ColorSwatch button-in-button, 5 nodes). FR-8 color-contrast (--fg-tertiary #6b7280 on #14161b = 3.74:1 < AA 4.5:1, 44 nodes). FR-9 aria-prohibited-attr (ContrastMatrix header swatches, 10 nodes). FR-10 scrollable-region-focusable (JsonSidebar aside, 1 node). All pre-existing from Loop 1/2 — missed because FR-3 Loop 2 accepted axe-core deferral. Loop 4 FR-6 fix itself is clean and validated (2/2 flow-a-live PASS against LIVE Railway, 5/5 flow-d PASS, 4/4 theme-bundle-adapter PASS, build byte-identical to 0.1.2 at 64.68 kB gzipped). Sprint 1 PASS cannot issue over four serious WCAG violations on a project whose Lab PRD §7 Tier 1 requires WCAG AA and whose self-test-report §1 claims full AA compliance.",
   "notes": "Loop 4 Works FR-6 fix is exemplary: test-only change, 0 src/ modifications, build identical to Loop 3 (64.68 kB gzipped), independently re-run 2/2 flow-a-live + 5/5 flow-d + 4/4 theme-bundle-adapter against LIVE Railway v1.5.0 all PASS. FR-6 is RESOLVED. Guard ran first-ever axe-core scan in Loop 4 specifically to adjudicate the button-in-button secondary observation Works flagged. Axe surfaced 4 serious + 1 moderate pre-existing WCAG violations. Loop 1 Guard miss on nested-interactive, color-contrast, aria-prohibited-attr, scrollable-region-focusable — all traceable to FR-3 Loop 2 acceptance of 'axe-core deferred to Sprint 2'. Issuing FR-7/8/9/10 for Loop 5. All within Works-CTO authority (no Lab amendment needed). fixLoopCount=4/7, one loop below escalation. Expected Loop 5 scope ~30-60 min: token change + 4 component-level fixes. No backend callbacks.",
