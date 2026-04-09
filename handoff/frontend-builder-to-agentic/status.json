@@ -1,6 +1,11 @@
 {
-  "state": "idle",
-  "type": null,
-  "callback_id": null,
-  "timestamp": null
+  "state": "callback_pending",
+  "type": "deployment-lag+auth-bootstrap",
+  "callback_id": "CB-001-sprint6-deploy-and-auth",
+  "timestamp": "2026-04-09T01:15:00Z",
+  "severity": "critical",
+  "blocking": ["guard-verification", "live-works-development"],
+  "source": "frontend-builder",
+  "target": "agentic-conglomerate",
+  "project": "color-palette-api"
 }
