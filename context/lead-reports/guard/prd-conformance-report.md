@@ -83,3 +83,37 @@ Cross-reference: ux-flows.md:168 mentions "/ focus-seed-input" as Sprint 2 for t
 ### PRD is correct; frontend mistyped
 
 FR-4 is NOT a PRD gap. `docs/frontend-handoff.md:52` and `api-contract.yaml:730-747` both document `themeBundle` as the `/theme/generate` response. Frontend typed `PaletteResource` (with `colors[]`). FE-DEFECT, not SPEC-MISMATCH, not BACKEND-DEFECT.
+
+---
+
+## Loop 3 Update — 2026-04-09
+
+**Verdict**: **PASS** for all PRD P0 / Tier 1 items. **CONDITIONAL on CB-002** for live browser smoke.
+
+### PRD §7 Tier 1 re-check
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Doctrine §1.1-§1.10 enforcement | **PASS** — regression greps clean (vocabulary, fonts, easings, gradients) |
+| 2 | 4-state coverage (6/6 data + 8/8 interactive) | **PASS** — no component changes in Loop 3 |
+| 3 | 21 keyboard shortcuts | **PASS** — `use-keyboard-shortcuts.ts` 178 lines, untouched |
+| 4 | Live API contract conformance | **PASS** — Path B keeps `/theme/generate` (deterministic), adapter at boundary, 4/4 live tests pass |
+| 5 | MSW → live switch documented | **PASS** — `scripts/dev-live.mjs` exists; **caveat FR-5** logs cleanup hygiene defect |
+| 6 | URL seed round-trip byte-identical (Flow D) | **PASS** — `tests/flow-d.spec.ts` 5/5 PASS |
+| 7 | a11y: WCAG AA + focus rings + ARIA | **PASS** — no DOM changes in Loop 3 |
+| 8 | Tier 2 Performance: bundle <200 kB gzipped | **PASS** — 65.96 kB gzipped (33% of budget) |
+
+### Flow re-verification
+
+- **Flow A** (theme generate): NOW PASSES against live at the **adapter level** via `tests/theme-bundle-adapter.spec.ts` 4/4 (Node-level fetch bypasses CORS). Browser-level Flow A is BLOCKED until CB-002 lands. Once CORS is fixed, the existing `tests/flow-a-live.spec.ts` (drafted by Works) becomes the unblock smoke.
+- **Flow B** (export): adapter delivers normalized `PaletteResource` to `exportCurrentFormat()` → no longer crashes on `pal.colors[0].hex`. Verified by re-grep + adapter contract test.
+- **Flow C** (contrast / explain): `pal.colors.map(c => c.hex)` now sees the 5-element normalized array from the adapter. No crash.
+- **Flow D** (URL round-trip): MSW Playwright 5/5 PASS. Live byte-identity proven by adapter test #3 (parallel `{primary, seed}` calls produce identical hex arrays).
+
+### PRD scope discipline
+
+Path B was a non-trivial architecture decision that **could** have been a scope creep risk. Works correctly limited the change to (a) one new file (`theme-bundle.ts`), (b) one new type pair (`ThemeRamp` + `ThemeBundleResource`), (c) one MSW stub function, (d) one MSW handler line, (e) one api-client method body. **Eleven consumer sites untouched**. This is exactly the right level of containment for a Loop fix. No PRD scope expansion.
+
+### Conditional element
+
+CONDITIONAL PASS verdict is solely due to CB-002 (backend CORS) blocking the browser-level live smoke. PRD §6 release criteria require "live API + browser end-to-end smoke" which is currently impossible to execute. Once CB-002 lands and `flow-a-live.spec.ts` passes, the verdict upgrades to FULL PASS without further Works fixes needed.

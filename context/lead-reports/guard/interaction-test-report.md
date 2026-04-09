@@ -101,3 +101,44 @@ All 6 criteria traceable.
 ### Caveat — MSW masks FR-4
 
 The Playwright tests run with MSW-on. This means Flow D plumbing is verified but Flow A + D end-to-end against live backend is NOT tested. FR-4 (contract-validation report) documents the resulting CRITICAL runtime crash.
+
+---
+
+## Loop 3 Update — 2026-04-09
+
+**Verdict**: **PASS (regression-only)** with one hygiene caveat (FR-5 LOW).
+
+### Re-run results
+
+```
+$ npx playwright test tests/flow-d.spec.ts
+  ok 1  ?seed=XXX on mount populates store before first regenerate (543ms)
+  ok 2  pressing r updates URL with a new valid 13-char Base32 seed (818ms)
+  ok 3  ?mode=light on mount applies light mode (420ms)
+  ok 4  invalid seed in URL falls back gracefully (no crash, random seed used) (413ms)
+  ok 5  mode default (dark) is omitted from URL (779ms)
+5 passed (6.6s)
+
+$ npx playwright test tests/theme-bundle-adapter.spec.ts
+  ok 1  live /theme/generate returns themeBundle shape (289ms)
+  ok 2  adapter flattens live themeBundle to PaletteResource with 5 valid colors (190ms)
+  ok 3  adapter is deterministic for fixed {primary, seed} (Flow D round-trip) (175ms)
+  ok 4  adapter handles stub themeBundle without crashing (8ms)
+4 passed (3.7s)
+```
+
+**9/9 Playwright PASS** across both suites — Flow D regression intact and adapter correctness independently verified against live Railway v1.5.0.
+
+### use-keyboard-shortcuts.ts
+
+Loop 2 → Loop 3 diff: **zero changes**. File still 178 lines, all 21 shortcuts preserved. The keyboard `r` regenerate path goes through `actions.ts:regeneratePalette()` → `api.generateTheme()` → `themeBundleToPaletteResource()` → store update, and the URL sync subscriber fires. Verified working in `tests/flow-d.spec.ts` test #2 ("pressing r updates URL with a new valid 13-char Base32 seed").
+
+### MSW masking caveat — RESOLVED
+
+The Loop 1 + Loop 2 caveat ("MSW masks FR-4") is now CLOSED. `src/mocks/stub-data.ts:106 stubThemeBundle()` returns a real `ThemeBundleResource` shape, and `src/mocks/handlers.ts:35` uses it. MSW-on tests now exercise the **same adapter path** as production. There is no longer any divergence between MSW stub shape and live response shape for `/theme/generate`.
+
+### Hygiene defect surfaced (FR-5 LOW, non-blocking)
+
+The first Flow D run in this verification session failed 2/5 due to a stale `frontend/.env.local` left behind by `scripts/dev-live.mjs`. This file forces `VITE_USE_MSW=false` which makes the canonical `playwright.config.ts` (MSW-on) inadvertently hit live, which then fails CORS preflight (CB-002). Resolution: `rm frontend/.env.local`, then 5/5 PASS.
+
+This is an environmental hygiene defect, NOT an interaction-test regression. Logged as **FR-5 LOW** in `fix-requests.md` for Sprint 2 hardening (recommended fix: replace file-based env override with `cross-env`).

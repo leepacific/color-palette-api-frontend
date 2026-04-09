@@ -87,3 +87,41 @@ All within normal variation. No regression.
 ### Lighthouse still deferred
 
 FR-3 Loop 2 installed Playwright + axe-core but did not add Lighthouse. Bundle-size proxy is sufficient for Tier 2 provisional PASS.
+
+---
+
+## Loop 3 Update — 2026-04-09
+
+**Verdict**: **PASS** — bundle delta within budget, build clean.
+
+### Build evidence (Guard re-run)
+```
+$ npm run build
+dist/assets/index-BWTbsmnl.css    43.26 kB │ gzip: 19.50 kB
+dist/assets/index-Ce6RxM63.js    210.20 kB │ gzip: 65.96 kB
+dist/assets/browser-DbK-bcFO.js  254.59 kB │ gzip: 90.18 kB  (MSW dev-only)
+✓ built in 3.03s
+```
+0 TypeScript errors, 0 Vite warnings.
+
+### Bundle delta vs Loop 2 (`b41dfcd`)
+
+| Asset | Loop 2 | Loop 3 | Delta | Attribution |
+|-------|--------|--------|-------|-------------|
+| index.js raw | 209.59 kB | 210.20 kB | +0.61 kB | adapter (`theme-bundle.ts` 64 lines) + types (`api.ts` +52 lines) |
+| index.js gzipped | 65.71 kB | 65.96 kB | **+0.25 kB** | adapter overhead is minimal due to repeated string compression |
+| index.css gzipped | 19.50 kB | 19.50 kB | 0 | zero stylesheet changes in Loop 3 |
+| MSW browser bundle | unchanged in production output (dev-only) |
+
+**Tier 2 Performance budget**: <200 kB JS gzipped — current 65.96 kB = **33% of budget**. Substantial headroom remaining.
+
+### Why bundle growth is acceptable
+
+The Loop 3 adapter is the architecturally correct solution to FR-4: it isolates the data-shape transformation at the API client boundary so 11 consumer sites need zero changes. The +0.25 kB gzipped cost is the price of that isolation, and it's well below any reasonable threshold.
+
+### CORS gap (CB-002) — performance implication
+
+Once CB-002 is resolved and the frontend runs against live, every POST will incur a CORS preflight (~50-150ms over the wire). Frontend should consider adding a `crossorigin: 'use-credentials'` cache header strategy in Sprint 2 if preflight latency becomes user-visible. Backend `access-control-max-age: 3600` (1 hour) already mitigates this for return visits.
+
+### Lighthouse still deferred to Sprint 2 hardening
+No change from Loop 2 reasoning.

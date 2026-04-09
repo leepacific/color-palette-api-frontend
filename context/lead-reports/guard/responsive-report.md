@@ -64,3 +64,35 @@ Loop 2 findings summary: No responsive regression possible. Zero CSS, zero media
 - **Breakpoints** — `src/styles/tokens.css` media queries untouched.
 - **CSS bundle delta** — +0.19 kB raw / +0.05 kB gzipped. Zero stylesheet changes from `use-url-sync.ts` (TypeScript only).
 - **Build output** — `dist/assets/index-BWTbsmnl.css` 43.26 kB / 19.50 kB gzipped. Matches Loop 1 size envelope.
+
+---
+
+## Loop 3 Update — 2026-04-09
+
+**Verdict**: **PASS (regression-only)**.
+
+Same reasoning as Loop 2: zero CSS, zero media queries, zero layout JavaScript touched in Loop 3. The FR-4 fix is purely a TypeScript adapter at the API client boundary.
+
+### Files changed in Loop 3 (and what they touch)
+
+| File | Type | Layout impact |
+|------|------|---------------|
+| `src/lib/theme-bundle.ts` (NEW) | TS adapter | None |
+| `src/types/api.ts` | TS types | None |
+| `src/lib/api-client.ts` | TS API method | None |
+| `src/mocks/stub-data.ts` | MSW stub | None (dev-only) |
+| `src/mocks/handlers.ts` | MSW handler | None (dev-only) |
+
+### Build evidence
+```
+dist/assets/index-BWTbsmnl.css    43.26 kB │ gzip: 19.50 kB
+```
+
+**CSS gzip delta vs Loop 2**: 0 bytes. Identical hash (`BWTbsmnl`) suggests no stylesheet input changed at all in Loop 3.
+
+### Breakpoints retained
+- `<1200px` collapses right panel (ExplainPanel) — unchanged
+- `<900px` collapses left panel (JsonSidebar) — unchanged
+- IDE tool-window grid template (280/1fr/360 × 44/1fr/180) — unchanged
+
+No responsive regression possible.

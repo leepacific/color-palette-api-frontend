@@ -72,3 +72,24 @@ FR-3 Loop 2 installed `@axe-core/playwright@^4.11` but did not add `tests/a11y.s
 3. No a11y regression can arise from FR-1 URL sync plumbing.
 
 If Guard escalates Loop 3, a 10-line `tests/a11y.spec.ts` takes ~15 min.
+
+---
+
+## Loop 3 Update — 2026-04-09
+
+**Verdict**: **PASS (regression-only)**.
+
+Loop 3 scope was strictly the FR-4 themeBundle adapter (`src/lib/theme-bundle.ts`, `src/types/api.ts`, `src/lib/api-client.ts`, `src/mocks/stub-data.ts`, `src/mocks/handlers.ts`). All changes are pure data-shape transformations at the API client boundary. **Zero changes to**:
+
+- ARIA landmarks / roles / labels
+- Focus rings or focus management
+- Skip-to-content link
+- `prefers-reduced-motion` handling
+- Color contrast tokens (`--bg-*`, `--fg-*`, `--accent-*`)
+- Keyboard interactions (21 shortcuts in `use-keyboard-shortcuts.ts` — file unchanged in Loop 3, line count still 178)
+
+The adapter delivers a normalized `PaletteResource` to the same components that consumed it pre-Loop 3, so rendered swatches still expose hex/oklch/hsl in their `aria-label` per Loop 1's a11y verification. No new interactive surfaces, no new modals, no new keyboard handlers.
+
+**axe-core wiring**: still deferred to Sprint 2 hardening (logged in `fix-requests.md` FR-5 backlog along with Lighthouse CI). Justified because (a) Loop 1 manual a11y audit was clean, (b) zero structural DOM changes in Loops 2 and 3, (c) Loop 3 added no UI surfaces — only data plumbing.
+
+**No a11y impact from CB-002 / CB-003** (those are backend defects; the frontend a11y surface is unaffected). Once CB-002 lands and the browser-level live smoke runs, an a11y axe sweep on the live-data render should be added to that post-CB-002 spec.

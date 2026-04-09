@@ -64,3 +64,42 @@ Loop 2 changes are confined to URL sync plumbing (`src/hooks/use-url-sync.ts`), 
 - Bundle delta: +1.50 kB raw / +0.62 kB gzipped. All attributable to `use-url-sync.ts`. Under Tier 2 Performance budget.
 
 No visual regression possible given the scope of Loop 2 changes.
+
+---
+
+## Loop 3 Update — 2026-04-09
+
+**Verdict**: **PASS (regression-only)**.
+
+### Doctrine regression greps (Guard re-run)
+
+| Pattern | Path | Result |
+|---------|------|--------|
+| `seamless\|empower\|revolutioniz\|unleash\|elevate your\|game.chang\|next.gen\|cutting.edge\|state.of.the.art\|reimagine\|transform your` | `src/` | **0 matches** |
+| `font-family.*Inter[^,]` (Inter without fallback) | `src/` | **0 matches** |
+| `linear-gradient.*purple\|gradient.*violet.*blue\|from-purple.*to-blue` | `src/` | **0 matches** |
+| `cubic-bezier\(.+\)` | `src/` | 2 matches: `(0.2, 0, 0, 1)` snap, `(0.4, 0, 1, 1)` in — **both inside [0,1] box** |
+
+All doctrine §1.5 / §1.9 / §1.10 / purple-blue checks **PASS**.
+
+### Loop 3 file scope vs visual surface
+
+The FR-4 fix is exclusively in:
+- `src/lib/theme-bundle.ts` (NEW, no JSX)
+- `src/types/api.ts` (types only)
+- `src/lib/api-client.ts` (network method body)
+- `src/mocks/stub-data.ts` (MSW data, dev-only)
+- `src/mocks/handlers.ts` (MSW handler, dev-only)
+
+**Zero JSX/TSX components touched**, **zero CSS files touched**, **zero token changes**. The visual surface is byte-identical to Loop 2.
+
+### CSS hash check
+`dist/assets/index-BWTbsmnl.css` — **same hash as Loop 2** (`BWTbsmnl`). Vite hashes are content-addressed; identical hash = identical CSS bytes.
+
+### Mint-cyan accent
+`#7AE4C3` (Doctrine §1.4) intact in `src/styles/tokens.css` (Loop 3 didn't touch the file). Used as primary accent for focus rings, locks, accent borders. No drift.
+
+### Bundle delta vs Loop 2
++0.61 kB raw / +0.25 kB gzipped, all attributable to the adapter + new types. No visual budget impact.
+
+**No visual regression possible given the scope of Loop 3 changes.**

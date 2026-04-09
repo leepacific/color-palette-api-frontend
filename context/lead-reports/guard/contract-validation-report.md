@@ -142,3 +142,58 @@ Loop 1 contract verification was incomplete. Going forward, contract verificatio
 3. At least one MSW-off end-to-end smoke run per sprint
 
 Logging to `missed-defects.md` for Sprint 1 Guard retrospective.
+
+---
+
+## Loop 3 Update — 2026-04-09
+
+**Verdict**: **CONDITIONAL PASS** — adapter resolves the type mismatch correctly; two backend defects discovered + filed as Callback B.
+
+### FR-4 fix verification (Path B — themeBundle adapter at API client boundary)
+
+Independent re-curl of live `/api/v1/theme/generate` (Railway v1.5.0):
+```
+$ curl -X POST .../api/v1/theme/generate -H "x-api-key: $KEY" \
+       -d '{"primary":"#0F172A","mode":"both","semanticTokens":true,"seed":"94TMTHJ5QEQMW"}'
+{"object":"themeBundle","primaryInput":{"hex":"#0F172A",...},
+ "primitive":{"primary":{50..950 ramp},"secondary":{...},"accent":{...},"neutral":{...}},...}
+```
+
+`ThemeBundleResource` type in `src/types/api.ts:46-84` matches 1:1.
+`themeBundleToPaletteResource()` in `src/lib/theme-bundle.ts` correctly flattens 4 ramps into a 5-color `PaletteResource`. `api.generateTheme()` runs the adapter at the boundary so all 11 consumer sites receive the normalized shape with zero source changes.
+
+Independent test re-run:
+```
+$ npx playwright test tests/theme-bundle-adapter.spec.ts
+4 passed (3.7s)
+```
+Tests prove (1) backend conformance, (2) adapter shape correctness, (3) Flow D byte-identity across parallel calls, (4) synthetic-bundle robustness.
+
+**MSW root cause closed**: `src/mocks/stub-data.ts:106 stubThemeBundle()` now returns a real `ThemeBundleResource`. `src/mocks/handlers.ts:35` uses it. MSW-on tests now exercise the same adapter path as production. Loop 1 Guard miss root cause permanently sealed.
+
+### CB-002 — Backend CORS allow-headers (CRITICAL, blocks Sprint 1 release)
+
+Independent preflight curl by Guard:
+```
+$ curl -X OPTIONS .../api/v1/theme/generate -H "Origin: http://localhost:5173" \
+       -H "Access-Control-Request-Headers: idempotency-key,request-id" -D - -o /dev/null
+HTTP/1.1 200
+access-control-allow-headers: content-type,x-api-key,authorization
+```
+
+Missing `idempotency-key` and `request-id`. Browser preflight blocks every POST. Frontend cannot call live API at all. Filed as **Callback Protocol B** at `handoff/frontend-builder-to-agentic/CB-002-cors-allow-headers.md`. Backend fix is ~1 line of Rust + redeploy.
+
+**Step 8 release approval is blocked by CB-002.** Adapter correctness is independently proven via Node-level fetch tests (which bypass CORS), so the CONDITIONAL portion of the verdict is purely about browser-level smoke being deferred until the backend fix lands.
+
+### CB-003 — `/palette/random?seed=` non-determinism (MEDIUM, non-blocking)
+
+Independent verification:
+```
+$ curl ".../api/v1/palette/random?seed=94TMTHJ5QEQMW" → first hex #003534
+$ curl ".../api/v1/palette/random?seed=94TMTHJ5QEQMW" → first hex #6E7CDF
+```
+
+Different colors. Contradicts `docs/frontend-handoff.md §12 line 382` which documents seeded palette responses as taking the deterministic short-circuit path. Filed as **CB-003** at `handoff/frontend-builder-to-agentic/CB-003-palette-random-determinism.md`. Backend can fix EITHER as a bug (plumb seed into RNG) OR as a docs clarification. Non-blocking for Sprint 1 because Path B intentionally never calls `/palette/random?seed=`.
+
+### Verdict
+PASS for FR-4 adapter correctness; CONDITIONAL on CB-002 resolution before Step 8.

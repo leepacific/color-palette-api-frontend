@@ -488,3 +488,77 @@ I missed this in Loop 1. My contract verification was curl-only and did not cros
 ---
 
 **Loop counter**: Loop 2 complete. fixLoopCount remains 2/7 (Works' Loop 2 fix was in-scope and correct; FR-4 is a new escalation from a Loop 1 Guard miss, not a Loop 2 regression). Loop 3 target: fix FR-4 only; FR-1/2/3 already resolved and locked.
+
+---
+
+# Loop 3 Re-verification Result — CONDITIONAL PASS (2026-04-09)
+
+FR-4 is **FIXED** by Works' Path B (themeBundle adapter). Independently re-verified by Guard:
+- 4/4 live `tests/theme-bundle-adapter.spec.ts` against Railway v1.5.0 — PASS
+- 5/5 `tests/flow-d.spec.ts` regression — PASS (after .env.local hygiene cleanup, see FR-5)
+- 11 consumer sites untouched and shielded by adapter at API client boundary
+- MSW stub now returns themeBundle shape — Loop 1 root cause closed at the source
+
+**Two backend defects discovered + classified by Guard** (NOT in fix-requests scope):
+- **CB-002 (CRITICAL, blocks Sprint 1 release)**: Backend CORS allow-headers missing `idempotency-key` and `request-id`. Filed at `handoff/frontend-builder-to-agentic/CB-002-cors-allow-headers.md`. Step 8 release waits for CB-002.
+- **CB-003 (MEDIUM, non-blocking)**: `/palette/random?seed=` non-determinism contradicts `docs/frontend-handoff.md §12 line 382`. Filed at `handoff/frontend-builder-to-agentic/CB-003-palette-random-determinism.md`.
+
+## FR-5 — `dev-live.mjs` cleanup leaks `.env.local`
+
+**Severity**: LOW (FE-DEFECT, hygiene)
+**Found**: Loop 3 Guard re-verification
+
+### Symptom
+Initial `npx playwright test tests/flow-d.spec.ts` invocation failed 2/5 with
+"URL seed did not update after regenerate". Diagnostic browser console:
+```
+Access to fetch at '.../api/v1/theme/generate' from origin 'http://localhost:5173'
+has been blocked by CORS policy: Request header field idempotency-key
+is not allowed by Access-Control-Allow-Headers in preflight response.
+```
+
+### Root cause
+`scripts/dev-live.mjs` writes `.env.local` with `VITE_USE_MSW=false` to force
+the canonical Vite dev server to bypass MSW for live smoke tests. It registers
+an `exit` handler to delete the file. On Windows the handler is unreliable
+when the parent process is killed via SIGKILL (which Playwright's `webServer`
+shutdown does on test-run end), leaving `.env.local` behind. Vite reads
+`.env.local` with higher precedence than `.env`, so the canonical
+`playwright.config.ts` (which uses `npm run dev` via the standard `webServer`)
+picks up `VITE_USE_MSW=false` from the leaked file and tries to hit the live
+backend, which fails preflight (see CB-002).
+
+### Verification
+After `rm frontend/.env.local`, the canonical Flow D suite passes 5/5 in 6.6s.
+The frontend code is correct; the failure mode was purely environmental.
+
+### Recommended fix (Sprint 2 hardening — non-blocking)
+Pick one:
+1. **Refuse to start**: `dev-live.mjs` aborts with a clear error if `.env.local`
+   already exists (forces the user to clean up before running).
+2. **Use `cross-env` instead of file override**: avoids touching disk at all.
+   Vite respects `VITE_*` from `process.env` when no file overrides them.
+3. **Use a different env var name** like `VITE_LIVE_SMOKE=true` and have
+   `mocks/browser.ts` check both flags, so a leaked `.env.local` doesn't
+   silently break MSW-on tests.
+4. **Add a `.gitignore` + pre-test guard**: a Playwright `globalSetup` that
+   refuses to start if `.env.local` exists and the test config is the MSW-on
+   default config.
+
+Recommendation: option 2 (cross-env). Smallest blast radius.
+
+### Acceptance criteria
+- A killed `dev-live` run does not leave any state on disk that breaks the
+  next `npx playwright test tests/flow-d.spec.ts` invocation.
+- `playwright.config.ts` Flow D suite passes 5/5 immediately after a killed
+  live run, with no manual cleanup required.
+
+### Why LOW (non-blocking)
+- The frontend code is correct. The defect is in the helper script.
+- Workaround is one `rm` command and is now documented in `pass-report.md` Phase 1.
+- Does not affect deployed production behavior in any way.
+
+---
+
+**Loop counter**: Loop 3 complete. fixLoopCount = 3/7. Below escalation cap.
+FR-5 deferred to Sprint 2 hardening (LOW). Sprint 1 release waits on CB-002 only.
