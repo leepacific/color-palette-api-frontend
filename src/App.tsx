@@ -8,9 +8,14 @@ import { HelpOverlay } from '@/components/HelpOverlay';
 import { ExportDrawer } from '@/components/ExportDrawer';
 import { Toast } from '@/components/Toast';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
+import { useUrlSync } from '@/hooks/use-url-sync';
 import { useStore } from '@/state/store';
 
 function AppInner() {
+  // URL sync MUST run before useKeyboardShortcuts / GeneratorPage effects so
+  // the seed from ?seed= is in the store before the first regeneratePalette
+  // call. useUrlSync parses the URL synchronously during render.
+  useUrlSync();
   useKeyboardShortcuts();
   const mode = useStore((s) => s.mode);
 

@@ -363,3 +363,112 @@ a mitigation, not a Guard PASS criterion.
 ### §9 — TanStack Query + Zod not wired
 
 - Both are installed in `package.json` but not used. Sprint 2 upgrades.
+
+---
+
+## 12. Loop 2 Fix Verification — 2026-04-09
+
+Loop 1 returned FAIL on 3 items (FR-1 CRITICAL, FR-2 LOW, FR-3 LOW). Loop 2
+addresses all three. This section is additive — all Loop 1 §§1-11 findings
+still hold except §11.1 which is now resolved.
+
+### 12.1 FR-1 — Flow D URL seed round-trip: IMPLEMENTED
+
+Files changed:
+- `src/hooks/use-url-sync.ts` — NEW. Parses `?seed`, `?locked`, `?mode` on
+  mount (synchronous, during render, via `useRef` gate so StrictMode
+  double-invoke does not re-apply). Subscribes to Zustand `seed / locked /
+  mode` slices and `window.history.replaceState`s the URL on change.
+- `src/App.tsx` — imports and calls `useUrlSync()` in `AppInner` BEFORE
+  `useKeyboardShortcuts()` so the URL seed lands in the store before
+  `GeneratorPage.tsx`'s first-regenerate effect fires.
+- `src/lib/actions.ts` — `regeneratePalette()` now mints a client-side random
+  seed via `randomSeed()` when no seed is passed (keyboard `r`), passes it to
+  the backend, and writes the returned seed (or request seed as fallback)
+  back to the store. Guarantees URL always reflects current palette.
+
+Acceptance criteria verified (via `tests/flow-d.spec.ts`, 5/5 PASS):
+- [x] Load `/?seed=ABCDEFGHJKMNP` → store seed populated before first
+      regenerate, title shows `cpa [ABCDEFGHJKMNP]`, URL retains seed param.
+- [x] Press `r` → URL updates to `/?seed=<new-13-char-base32>`, title tracks
+      the new seed.
+- [x] `?mode=light` in URL on first load → `data-theme="light"` on `<html>`,
+      URL keeps `mode=light`.
+- [x] Invalid seed (e.g. `?seed=NOT_A_VALID_SEED_AT_ALL`) → page renders, no
+      crash, random valid seed used, title shows a 13-char Base32 seed.
+- [x] `mode=dark` is default → omitted from URL after regenerate (clean URL).
+
+Byte-identical round-trip under a fixed seed is guaranteed by the backend
+contract, which Guard verified in Loop 1 §E3-E4 via independent curl calls
+against Railway v1.5.0 with DEV_API_KEY. Frontend plumbing is the only gap;
+Loop 2 closes it.
+
+### 12.2 FR-3 — Test infrastructure: WIRED
+
+- `npm install -D @playwright/test @axe-core/playwright` added to workspace.
+- `npx playwright install chromium` ran clean.
+- `playwright.config.ts` NEW. Vite dev server as `webServer`, MSW-on (Sprint
+  1 canonical config), single-worker, chromium-only.
+- `tests/flow-d.spec.ts` NEW. 5 scenarios covering all FR-1 acceptance
+  criteria. All 5 PASS in 6.5s.
+- `package.json` scripts: `test:e2e`, `test:e2e:flow-d`.
+- `vite.config.ts` test block tightened: `include: ['src/**/*.{test,spec}.
+  {ts,tsx}']`, `exclude: ['tests/**']` so vitest and playwright do not
+  collide.
+- axe-core installed but not yet wired (Sprint 2 hardening; bundle budget
+  and doctrine grep already cover the Tier 1 a11y blockers).
+- Lighthouse CI deferred to Sprint 2 per Guard fix-requests FR-3 LOW
+  allowance ("deferrable; bundle under budget covers Performance Tier 2").
+
+### 12.3 FR-2 — Changelog disclosure: UPDATED
+
+`handoff/works-to-guard/changelog.md` now has:
+- A new `0.1.1 — Loop 2 fix` section documenting FR-1 / FR-2 / FR-3
+  resolutions, the bundle size delta, and the untouched Loop 1 PASS
+  criteria.
+- A retroactive disclosure in `Known deviations` noting that Loop 1 silently
+  deferred Flow D to self-test-report §11.1 rather than surfacing it here.
+  Process lesson recorded for future sprints.
+- `Lighthouse CI` explicitly listed as deferred.
+
+### 12.4 Regression checks (Loop 1 PASS criteria preserved)
+
+- Doctrine grep: `seamless|empower|revolutioniz|unleash|elevate your|혁신적|
+  새로운 차원|경험을 재정의` in src/ → 0 matches. PASS.
+- Doctrine grep: `Inter[,']` in src/ → 0 matches. PASS (JetBrains Mono +
+  IBM Plex Sans only).
+- Doctrine grep: `cubic-bezier\([^)]*1\.[0-9]` in src/ → 0 matches. PASS
+  (no bounce/overshoot easing).
+- Doctrine grep: `linear-gradient.*#(66|67|68|69|6a|6b|6c|6d|76)` in src/ →
+  0 matches. PASS (no purple-blue defaults).
+- `npm run build` → 0 TS errors, 0 Vite warnings, 2.66s, bundle
+  `index-DJgpfDKa.js  209.59 kB │ gzip: 65.71 kB` (+0.62 kB gzipped vs Loop 1,
+  well under 200 kB Tier 2 budget). PASS.
+- 21 keyboard shortcuts — unchanged; `use-keyboard-shortcuts.ts` not touched.
+- 4-state component coverage — unchanged; no component files modified.
+- IDE tool-window layout — unchanged; `GeneratorPage.tsx` only gains no new
+  JSX.
+- Mint-cyan accent, sharp radius, steps(1,end) caret — unchanged; no token
+  files or styling touched.
+- MSW stubs — unchanged.
+
+### 12.5 Files added / modified in Loop 2
+
+Added:
+- `src/hooks/use-url-sync.ts`
+- `playwright.config.ts`
+- `tests/flow-d.spec.ts`
+
+Modified:
+- `src/App.tsx`              (+2 imports, +1 hook call, +4 comment lines)
+- `src/lib/actions.ts`       (+7 lines; requestSeed minting + setSeed write)
+- `src/pages/GeneratorPage.tsx` — unchanged (URL parse happens in parent)
+- `vite.config.ts`           (+9 lines; vitest test block)
+- `package.json`             (+2 scripts, +2 devDeps via npm install)
+- `handoff/works-to-guard/changelog.md`           (+60 lines; Loop 2 section)
+- `handoff/works-to-guard/self-test-report.md`    (+this §12)
+
+### 12.6 Loop 2 fixLoopCount
+
+Loop 1 → Loop 2. fixLoopCount=1 → 2. Well below the 7-loop cap.
+

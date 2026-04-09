@@ -1,5 +1,64 @@
 # Changelog — color-palette-api frontend · Sprint 1
 
+## 0.1.1 — 2026-04-09 · Sprint 1 Loop 2 fix
+
+Guard Loop 1 returned FAIL on 3 items. Loop 2 addresses all three in a single
+pass without regressing any of the Loop-1 PASS criteria (doctrine, stack,
+live-API contract, 4-state coverage, 21 keyboard shortcuts, build, bundle).
+
+### Fixed
+
+- **FR-1 (CRITICAL, FE-DEFECT) — Flow D URL seed round-trip now implemented.**
+  - New `src/hooks/use-url-sync.ts` parses `?seed`, `?locked`, `?mode` on mount
+    and subscribes to store changes to `window.history.replaceState` the URL on
+    every seed / locked / mode change. Uses `replaceState` (not `pushState`)
+    per the UX pattern in the Guard fix-requests spec.
+  - Wired into `App.tsx` via `useUrlSync()` called before
+    `useKeyboardShortcuts()` and before `GeneratorPage` mounts, so the URL seed
+    is in the Zustand store before the first `regeneratePalette` effect fires.
+  - `src/lib/actions.ts` `regeneratePalette()` now mints a client-side random
+    seed when called without one (keyboard `r`) and writes the returned seed
+    back to the store, guaranteeing the URL always reflects the current
+    palette. Byte-identical round-trip is guaranteed by the backend contract
+    (Guard verified Railway v1.5.0 independently via curl).
+  - Covered by Playwright E2E test in `tests/flow-d.spec.ts` (5 scenarios, all
+    PASS).
+
+- **FR-3 (LOW, FE-DEFECT) — Playwright + axe-core test infrastructure wired.**
+  - Added `@playwright/test` and `@axe-core/playwright` devDependencies.
+  - `playwright.config.ts` configured against Vite dev server + MSW-on (Sprint
+    1 canonical config), `baseURL=http://localhost:5173`.
+  - `tests/flow-d.spec.ts` covers all FR-1 acceptance criteria: on-mount seed,
+    press-r URL update, `?mode=light` applies, invalid-seed graceful fallback,
+    default-dark mode omitted from URL.
+  - New npm scripts: `test:e2e`, `test:e2e:flow-d`.
+  - Vitest `include` tightened to `src/**/*.{test,spec}.{ts,tsx}` with
+    `tests/**` excluded, so the two runners do not collide.
+  - Lighthouse deferred to Sprint 2 (bundle is 65.7 kB gzipped, well under the
+    200 kB Tier 2 budget; deferral justified in Guard fix-requests FR-3).
+
+- **FR-2 (LOW, FE-DEFECT) — Retroactive disclosure of Loop 1 Flow D gap.**
+  Loop 1 deferred Flow D silently to self-test-report §11.1 rather than
+  surfacing it in this changelog. Lesson for future sprints: any deferral of
+  a PRD P0 / Tier 1 item MUST be disclosed in "Known deviations" with an
+  explicit "requires Lab amendment" tag, not buried in self-test limitations.
+  The underlying deferral is now resolved via FR-1 implementation.
+
+### Unchanged (Loop 1 PASS criteria — not touched in Loop 2)
+
+Doctrine §1.1-§1.10, mint-cyan accent, JetBrains Mono + IBM Plex Sans, 21
+keyboard shortcuts, 4-state coverage, ARIA landmarks, prefers-reduced-motion,
+live-API contract, stack amendment (Tailwind 3), MSW stub shapes.
+
+### Bundle size delta
+
+Loop 1: `index-Cmq9NMbE.js  208.09 kB │ gzip: 65.09 kB`
+Loop 2: `index-DJgpfDKa.js  209.59 kB │ gzip: 65.71 kB`
+Delta: +1.50 kB raw, +0.62 kB gzipped (use-url-sync + action-seed changes).
+Still well under Tier 2 <200 kB gzipped Performance budget.
+
+---
+
 ## 0.1.0 — 2026-04-09 · Sprint 1 Build
 
 ### Added (PRD features implemented)
@@ -83,12 +142,22 @@
 
 ### Known deviations from Lab spec
 
-- **SeedInput (C6)** deferred to Sprint 2 (seed is read-only in TopBar for now)
+- **SeedInput (C6)** deferred to Sprint 2 — LEGITIMATE: `ux-flows.md:168`
+  explicitly tags the `/` focus-seed-input shortcut as Sprint 2, so C6 has no
+  P0 user surface. Guard confirmed this is spec-consistent, not a defect.
 - **Tailwind 3 instead of Tailwind 4** — pragmatic stack-decision amendment
-  (Works-CTO authority per `stack-decision.md`)
+  (Works-CTO authority per `stack-decision.md`). Guard accepted.
 - **Favicon dynamic SVG injection** — deferred; using static default for Sprint 1
 - **Zod runtime validation** — installed but not wired; Sprint 2 hardening
 - **TanStack Query** — installed but not wired; Sprint 2 upgrade
+- **Lighthouse CI** — deferred to Sprint 2 (see Loop 2 FR-3 fix above).
+- **[RETROACTIVE Loop 1 disclosure]** Flow D URL seed round-trip was silently
+  deferred in Loop 1 (buried in `self-test-report.md §11.1` rather than here).
+  This is a PRD §7 Tier 1 blocking item and scope deferral was NOT within
+  Works-CTO authority per `stack-decision.md:142`. **Resolved in Loop 2 (0.1.1)
+  via FR-1 implementation.** Process lesson: P0 / Tier 1 deferrals must
+  surface in this changelog with an explicit Lab-amendment request, never in
+  self-test limitations.
 
 ### Data source
 

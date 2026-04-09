@@ -8,3 +8,8 @@ build/
 *.log
 .vite/
 .cache/
+
+# Playwright artifacts
+test-results/
+playwright-report/
+.playwright/

@@ -2,6 +2,7 @@
 
 import { api, ApiError } from './api-client';
 import { useStore } from '@/state/store';
+import { randomSeed } from '@/lib/seed';
 import type { CodeExportFormat } from '@/types/api';
 
 function toAppError(e: unknown, fallbackType = 'api_error'): {
@@ -61,19 +62,30 @@ function handleError(err: unknown) {
 
 export async function regeneratePalette(seed?: string) {
   const store = useStore.getState();
+  // Flow D (PRD §5): every regenerate must land a concrete seed in the store
+  // so the URL sync hook can round-trip it. If the caller did not specify a
+  // seed (e.g. keyboard `r`), mint a fresh one client-side and pass it to the
+  // API — this guarantees the backend response + URL + store agree.
+  const requestSeed = seed ?? randomSeed();
   store.setPaletteLoading();
   try {
     const pal = await api.generateTheme({
       primary: store.palette?.colors[0]?.hex ?? '#0F172A',
       mode: 'both',
       semanticTokens: true,
-      seed,
+      seed: requestSeed,
     });
     store.setPalette(pal);
+    // Prefer the backend-returned seed (authoritative); fall back to the
+    // request seed (always defined). Guaranteed non-null.
+    const nextSeed = pal.seed ?? requestSeed;
+    if (nextSeed !== store.seed) {
+      store.setSeed(nextSeed);
+    }
     // Fire and forget the 2 analysis calls.
     const hexes = pal.colors.map((c) => c.hex);
     void refreshContrastMatrix(hexes);
-    void refreshExplanation(hexes, seed);
+    void refreshExplanation(hexes, nextSeed);
   } catch (err) {
     const appErr = handleError(err);
     store.setPaletteError(appErr);

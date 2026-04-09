@@ -1,14 +1,17 @@
 {
   "state": "ready",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "Frontend Works CTO",
-  "timestamp": "2026-04-09T03:35:33Z",
+  "timestamp": "2026-04-09T04:10:00Z",
   "build_status": "pass",
   "self_test_status": "pass",
   "page_count": 3,
   "component_count": 22,
   "sprint": 1,
+  "loop": 2,
+  "fix_loop_count": 2,
   "mode": "A",
   "data_source": "msw",
-  "notes": "Sprint 1 build complete. All doctrine greps clean. 22/23 components implemented (SeedInput C6 deferred to Sprint 2). Data bound to MSW stubs; MSW->live switch documented in self-test-report.md section 10. Backend gaps 1 and 2 expected resolved by Guard Phase. Deploys as Railway static site. 6/6 data components have 4-state coverage, 8/8 implemented interactive components have 4-state coverage."
+  "playwright_tests": "5/5 pass",
+  "notes": "Sprint 1 Loop 2 fix. FR-1 (Flow D URL seed round-trip) implemented via src/hooks/use-url-sync.ts + actions.ts client-side seed minting + App.tsx wiring. FR-3 (Playwright + axe-core) installed; tests/flow-d.spec.ts covers all FR-1 acceptance criteria (5/5 PASS). FR-2 (changelog disclosure) updated in works-to-guard/changelog.md with retroactive Loop 1 deferral disclosure + 0.1.1 Loop 2 section. All Loop 1 PASS criteria preserved: doctrine greps clean, 21 keyboard shortcuts unchanged, 4-state coverage unchanged, build pass 0 errors 0 warnings, bundle 209.59 kB raw / 65.71 kB gzipped (+0.62 kB vs Loop 1, still under 200 kB Tier 2 budget). See self-test-report.md §12 for full Loop 2 verification evidence."
 }
