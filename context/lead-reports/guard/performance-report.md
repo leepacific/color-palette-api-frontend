@@ -49,3 +49,41 @@ du -sh dist/ → 0.29 MB
 - [ ] Lighthouse score (deferred — FR-3)
 - [ ] Core Web Vitals (deferred — FR-3)
 - [ ] Real browser TTI measurement (deferred — FR-3)
+
+---
+
+## Loop 2 Update (2026-04-09)
+
+**Verdict (Loop 2): PASS (regression-only)**
+
+### Loop 2 findings summary
+
+Bundle size remains well under Tier 2 target. Loop 2 delta is small and attributable to the new URL sync hook.
+
+### Bundle size evidence (Loop 2 re-run)
+
+```
+$ npm run build
+dist/assets/index-BWTbsmnl.css    43.26 kB │ gzip: 19.50 kB
+dist/assets/index-DJgpfDKa.js    209.59 kB │ gzip: 65.71 kB
+dist/assets/browser-CiLXuLbA.js  253.82 kB │ gzip: 89.86 kB
+✓ built in 2.81s
+```
+
+Critical-path JS (MSW-off): 209.59 kB raw / 65.71 kB gzipped. Under 200 kB gzipped Tier 2 target.
+
+### Loop 1 → Loop 2 delta
+
+| Metric | Loop 1 | Loop 2 | Delta |
+|--------|--------|--------|-------|
+| JS raw | 208.09 kB | 209.59 kB | +1.50 kB |
+| JS gzip | 65.09 kB | 65.71 kB | +0.62 kB |
+| CSS raw | 43.07 kB | 43.26 kB | +0.19 kB |
+| CSS gzip | 19.45 kB | 19.50 kB | +0.05 kB |
+| Build time | 2.72s | 2.81s | +0.09s |
+
+All within normal variation. No regression.
+
+### Lighthouse still deferred
+
+FR-3 Loop 2 installed Playwright + axe-core but did not add Lighthouse. Bundle-size proxy is sufficient for Tier 2 provisional PASS.

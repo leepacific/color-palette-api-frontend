@@ -49,3 +49,26 @@ grep -n '--color-foreground\|--color-accent' src/styles/tokens.css → contrast-
 - [x] Contrast ≥4.5 via design tokens
 - [ ] axe-core live DOM scan (deferred to FR-3 / Sprint 1.5 hardening)
 - [ ] Lighthouse a11y score (deferred)
+
+---
+
+## Loop 2 Update (2026-04-09)
+
+**Verdict (Loop 2): PASS (regression-only)**
+
+Loop 2 findings summary: No accessibility regression. Loop 2 scope (URL sync hook + test infra) touches zero interactive components, zero ARIA attributes, zero focus management code, and zero reduced-motion paths.
+
+- **Focus ring** — `src/styles/tokens.css` + `global.css` untouched. 2px mint ring unchanged.
+- **Skip-to-content link** — `src/pages/GeneratorPage.tsx:29-31` untouched.
+- **`prefers-reduced-motion`** — `tokens.css:176-189` untouched.
+- **ARIA landmarks** — `role="main"`, header, nav regions unchanged.
+- **Keyboard navigation** — 21 shortcuts unchanged; input-focus guards intact.
+
+### axe-core wiring still deferred
+
+FR-3 Loop 2 installed `@axe-core/playwright@^4.11` but did not add `tests/a11y.spec.ts`. Works flagged this as Sprint-2-deferred. Guard accepts:
+1. Loop 1 code-level a11y review cleared §1.9 fonts, focus-visible, skip-link, landmarks, and reduced-motion.
+2. FR-3 was classified LOW in Loop 1; wiring it was optional-recommended.
+3. No a11y regression can arise from FR-1 URL sync plumbing.
+
+If Guard escalates Loop 3, a 10-line `tests/a11y.spec.ts` takes ~15 min.

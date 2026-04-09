@@ -45,3 +45,22 @@ npm run build → PASS 2.72s, 0 TS errors, 0 warnings, dist/ gzipped ~85 kB MSW-
 - [x] Typography hierarchy verified (JBM primary, Plex Sans scoped to one component)
 - [x] Color system verified against `design-system-spec.md` tokens
 - [x] No browser available → cannot screenshot but doctrine items do not require rendered inspection for this codebase
+
+---
+
+## Loop 2 Update (2026-04-09)
+
+**Verdict (Loop 2): PASS (regression-only)**
+
+Loop 2 changes are confined to URL sync plumbing (`src/hooks/use-url-sync.ts`), `src/App.tsx` (3-line add), `src/lib/actions.ts` (seed mint), `vite.config.ts`, `package.json`, and new test infra files. Zero changes to tokens, layout, components, fonts, copy, or CSS.
+
+### Regression check findings
+
+- Doctrine §1.5 vocab grep re-run: `grep -riE "seamless|empower|revolutioniz|unleash|elevate your" src/` → 0 matches. PASS.
+- Doctrine §1.9 Inter grep re-run: `grep -ri "Inter[,']" src/` → 0 matches. PASS.
+- Doctrine §1.4 mint-cyan accent: `src/styles/tokens.css` untouched, `#7AE4C3` intact. PASS.
+- Terminal caret `steps(1, end)`: BlinkingCaret component untouched. PASS.
+- Build re-run Loop 2: `✓ built in 2.81s`, 0 TS errors, 0 warnings.
+- Bundle delta: +1.50 kB raw / +0.62 kB gzipped. All attributable to `use-url-sync.ts`. Under Tier 2 Performance budget.
+
+No visual regression possible given the scope of Loop 2 changes.

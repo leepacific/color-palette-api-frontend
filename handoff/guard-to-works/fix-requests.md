@@ -1,11 +1,31 @@
 # Guard Fix Requests — color-palette-api frontend · Sprint 1
 
 **Author**: Frontend Guard QA Director
-**Date**: 2026-04-09
-**Judgment**: **FAIL**
-**Loop**: 1
+**Date (Loop 1)**: 2026-04-09
+**Date (Loop 2)**: 2026-04-09
+**Judgment (Loop 1)**: FAIL
+**Judgment (Loop 2)**: **FAIL** — FR-1/2/3 resolved, new FR-4 CRITICAL
 
-## Summary
+---
+
+## Loop 2 Verdict (2026-04-09)
+
+| ID | Loop 1 Severity | Loop 2 Status | Notes |
+|----|-----------------|---------------|-------|
+| FR-1 | CRITICAL | **RESOLVED** | `use-url-sync.ts` implemented; Playwright 5/5 PASS independently re-run; all 6 acceptance criteria verified via code review + test scenarios |
+| FR-2 | LOW | **RESOLVED** | `changelog.md` 0.1.1 Loop 2 section + retroactive deviation disclosure present |
+| FR-3 | LOW | **RESOLVED** | `@playwright/test` + `@axe-core/playwright` installed; `playwright.config.ts` + `tests/flow-d.spec.ts` committed; runs clean; axe-core wiring deferred to Sprint 2 (accepted — Loop 1 already cleared a11y via code review) |
+| **FR-4** | **CRITICAL (new)** | **OPEN** | **Flow A runtime crash** — frontend mistypes `/theme/generate` response as `PaletteResource` but live backend returns `themeBundle`. See FR-4 below. Blocks Loop 2 PASS. |
+
+### Why Loop 2 still FAILs
+
+Loop 2's fix scope (FR-1/2/3) is fully resolved. But Works' own fix-report disclosed an out-of-scope observation about `/theme/generate` returning `themeBundle` instead of the MSW stub's `PaletteResource` shape. I investigated and confirmed this is a CRITICAL runtime defect that makes Flow A (generate → show palette) crash at runtime against the live backend. Since the entire UI depends on `palette.colors[]`, the app is unusable against production.
+
+This is a **Loop 1 Guard miss**, not a Loop 2 regression. My Loop 1 contract verification was curl-only ("envelope matches") and I did not cross-check the frontend TypeScript consumer against the actual response shape. Escalating to FR-4 here.
+
+---
+
+## Summary (Loop 1 original)
 
 One P0 defect blocks Sprint 1 PASS. The rest of the Sprint 1 build is doctrine-compliant, stack-sound, and live-API verified. Two additional LOW items are non-blocking but should be addressed in the same fix loop to avoid a Loop 2.
 
@@ -311,3 +331,160 @@ U2 = backend Sprint 6 endpoint deployment (now live). Tier 1 criterion #6 = fron
 - Expect Loop 2 Guard pass to be fast (doctrine + contract already cleared; only FR-1 needs re-verification).
 
 **Loop counter**: this is Loop 1.
+
+---
+
+## FR-4 — `/theme/generate` response type mismatch — runtime crash against live backend — **CRITICAL / FE-DEFECT** (Loop 2)
+
+### Classification
+
+- **Severity**: CRITICAL (blocks Loop 2 PASS)
+- **Label**: FE-DEFECT (frontend mistyped the documented backend contract; backend is conformant to `docs/frontend-handoff.md` + `api-contract.yaml`)
+- **Loop 1 miss**: YES — my Loop 1 contract verification was curl-only. I verified the backend envelope but did not cross-check the frontend TypeScript consumer. Recording this as a missed-defect for Guard retrospective.
+
+### Defect
+
+Frontend types `/api/v1/theme/generate` response as `PaletteResource` (with top-level `colors: Color[]`). Live backend actually returns `themeBundle` (no top-level `colors[]`; instead `primaryInput`, `primitive.{primary,secondary,accent}`, `semantic`, `extendedSemantic`, etc.).
+
+### Evidence
+
+**E1 — Live backend curl (Railway v1.5.0, semanticTokens=true)**
+
+```bash
+$ curl -X POST https://color-palette-api-production-a68b.up.railway.app/api/v1/theme/generate \
+    -H "X-API-Key: cpa_live_frontenddev20260409aaaa1234" \
+    -H "Content-Type: application/json" \
+    -d '{"primary":"#0F172A","mode":"both","semanticTokens":true}'
+
+{
+  "object": "themeBundle",
+  "id": "tb_01KNR6NC7Z0EFE8GBK4M53FM96",
+  "createdAt": "2026-04-09T04:05:33.567244815+00:00",
+  "mode": "both",
+  "primaryInput": { "hex":"#0F172A", "rgb":{...}, "hsl":{...}, "oklch":{...}, "name":"Dark Blue" },
+  "primitive": {
+    "primary":   { "50":{...}, "100":{...}, ..., "950":{...} },
+    "secondary": { "50":{...}, ..., "950":{...} },
+    "accent":    { "50":{...}, ..., "950":{...} }
+  },
+  ...
+}
+```
+
+No top-level `colors` array. The shape is a themeBundle with ramp buckets keyed by shade step.
+
+**E2 — Frontend type declaration**
+
+`src/types/api.ts:28-38`:
+```ts
+export interface PaletteResource {
+  object: 'palette';
+  id: string;
+  createdAt: string;
+  colors: Color[];
+  compositeScore: number;
+  metrics: PaletteMetrics;
+  harmonyType: string;
+  iterations?: number;
+  seed?: string;
+}
+```
+
+`src/lib/api-client.ts:102-108`:
+```ts
+async generateTheme(req: ThemeGenerateRequest): Promise<PaletteResource> {
+  return apiFetch<PaletteResource>('/api/v1/theme/generate', {
+    method: 'POST',
+    body: JSON.stringify(req),
+    idempotent: true,
+  });
+},
+```
+
+Wrong. Return type should be a new `ThemeBundleResource` type matching the documented `themeBundle` shape, OR the frontend should not call `/theme/generate` at all for simple palette generation and should instead use `/palette/random?seed=...` for Flow A (which DOES return `PaletteResource` with `colors[]` — confirmed in Loop 1 curl test).
+
+**E3 — Consumer sites that would crash against live backend**
+
+```
+src/lib/actions.ts:73              primary: store.palette?.colors[0]?.hex ?? '#0F172A',
+src/lib/actions.ts:88              const hexes = pal.colors.map((c) => c.hex);
+src/lib/actions.ts:130             theme: { primary: pal.colors[0].hex },
+src/components/ComponentPreview.tsx:29-33   palette.colors[0..4]?.hex
+src/components/PaletteDisplay.tsx:95        palette?.colors.map(...)
+src/components/JsonSidebar.tsx:77           palette.colors.map(...)
+src/components/ContrastMatrix.tsx:76        palette?.colors.map((c) => c.hex)
+src/components/ExplainPanel.tsx:37          palette?.colors.map((c) => c.hex)
+src/hooks/use-keyboard-shortcuts.ts:96      s.palette.colors[focused].hex
+```
+
+Every swatch-rendering component, every export call, every contrast-matrix refresh, and every copy-hex keyboard shortcut crashes. The UI is non-functional against production backend.
+
+**E4 — Why MSW masked this in Works' testing**
+
+`src/mocks/stub-data.ts:39-74` `stubPalette()` returns a hand-crafted `PaletteResource` with `colors[]`. The MSW handler at `src/mocks/handlers.ts:32` maps `/api/v1/theme/generate` to `stubPalette()`, so the dev server never sees the real `themeBundle`. Works' Playwright tests (FR-3 Loop 2) run against MSW-on and therefore pass, but they do NOT exercise the live backend path.
+
+**E5 — Contract docs confirm `themeBundle` is the documented shape**
+
+- `docs/frontend-handoff.md:52` — `/api/v1/theme/generate` → response "`themeBundle` — Full theme with primitive ramps + semantic colors"
+- `docs/frontend-handoff.md:417` — "when `semanticTokens: true`, response gains `extendedSemantic` (28-slot shadcn-compatible bundle) + `slotSource`"
+- `frontend/context/from-agentic/api-contract.yaml:730-747` — `generateTheme` responds with `Resource_Theme` (themeBundle shape, `required: [primaryInput, ...]` at line 2911/3349)
+
+Backend is contract-conformant. Frontend mistyped. This is unambiguously a FE-DEFECT, not a BACKEND-DEFECT. **Do NOT route to Callback B.**
+
+### Required fix
+
+Choose one of two paths. Recommendation: **Path A** (simpler, preserves current UX).
+
+**Path A — Switch Flow A to `/palette/random?seed=`** (recommended)
+
+`/palette/random` returns `PaletteResource` with `colors[]` (Loop 1 curl-verified). This is the correct endpoint for "generate a 5-swatch palette for display". `/theme/generate` is for shadcn-style theme bundles and is arguably out of scope for the Sprint 1 swatch-grid UI.
+
+1. In `regeneratePalette()`, call `api.randomPalette({ seed: requestSeed })` instead of `api.generateTheme(...)`. (Add an optional seed query param support to `randomPalette` since current impl is GET with no params — see Loop 1 contract verification which called `/palette/random?seed=ABCDEFGHJKMNP` successfully.)
+2. Delete or repurpose `api.generateTheme` for Sprint 2 when a theme-bundle consumer actually exists.
+3. Re-run Playwright with `VITE_USE_MSW=false` to confirm Flow A + D work end-to-end against live backend.
+
+**Path B — Add ThemeBundleResource type + adapter**
+
+1. Add new type in `src/types/api.ts`:
+   ```ts
+   export interface ThemeBundleResource {
+     object: 'themeBundle';
+     id: string;
+     createdAt: string;
+     mode: 'light' | 'dark' | 'both';
+     primaryInput: Color;
+     primitive: {
+       primary:   Record<'50'|'100'|'200'|'300'|'400'|'500'|'600'|'700'|'800'|'900'|'950', Color>;
+       secondary: Record<'50'|'100'|'200'|'300'|'400'|'500'|'600'|'700'|'800'|'900'|'950', Color>;
+       accent:    Record<'50'|'100'|'200'|'300'|'400'|'500'|'600'|'700'|'800'|'900'|'950', Color>;
+     };
+     semantic?: unknown;       // shape TBD from api-contract.yaml Resource_Theme schema
+     extendedSemantic?: SemanticTokenBundle;
+     slotSource?: string;
+   }
+   ```
+2. Add adapter `themeBundleToPaletteResource(bundle): PaletteResource` that flattens `[primaryInput, primary.500, secondary.500, accent.500, primary.700]` (or similar 5-color selection) into a `colors[]` display array.
+3. Wrap `api.generateTheme` to call the adapter before returning.
+4. Update MSW stub to return `ThemeBundleResource` shape so tests match live.
+
+Path B is more invasive and requires choosing which 5 swatches to surface (arbitrary product decision). Path A is cleaner.
+
+### Acceptance criteria for Loop 3
+
+1. Run app with `VITE_USE_MSW=false` against live Railway backend. Press `r`. The palette renders without error. No `TypeError: Cannot read properties of undefined (reading 'hex')` in console.
+2. Flow A (generate → show palette) works end-to-end against live backend.
+3. Flow D (URL seed round-trip) works end-to-end against live backend (Playwright can be extended with a second config `playwright.live.config.ts` targeting MSW-off).
+4. MSW stub and live backend return the same runtime-shape for `/theme/generate` OR the app doesn't call `/theme/generate` anymore (Path A).
+5. No regression on FR-1/2/3 (Loop 2 PASS criteria) or Loop 1 doctrine/stack PASS criteria.
+
+### Why this is NOT Callback B (backend-defect)
+
+Backend is conformant to both `docs/frontend-handoff.md` and `api-contract.yaml`. The documented response for `/theme/generate` has ALWAYS been `themeBundle`. Sprint 6 Amendment extended it with `semanticTokens` + `extendedSemantic` but the base `primaryInput + primitive` shape was the contract from the start. The frontend typed the wrong shape. Backend does not need to change.
+
+### Guard retrospective note
+
+I missed this in Loop 1. My contract verification was curl-only and did not cross-check the frontend TypeScript consumer. Going forward, contract verification must include a live-API smoke (MSW off) of at least one end-to-end flow per sprint. Logging to `missed-defects.md` for Sprint 1 Guard retrospective.
+
+---
+
+**Loop counter**: Loop 2 complete. fixLoopCount remains 2/7 (Works' Loop 2 fix was in-scope and correct; FR-4 is a new escalation from a Loop 1 Guard miss, not a Loop 2 regression). Loop 3 target: fix FR-4 only; FR-1/2/3 already resolved and locked.

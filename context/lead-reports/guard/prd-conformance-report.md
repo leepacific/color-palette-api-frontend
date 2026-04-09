@@ -54,3 +54,32 @@ Cross-reference: ux-flows.md:168 mentions "/ focus-seed-input" as Sprint 2 for t
 - [x] Silent-deferral diff (self-test vs changelog) caught FR-1
 - [x] C6 deferral legitimacy verified against ux-flows.md
 - [x] Stack amendment authority check passed
+
+---
+
+## Loop 2 Update (2026-04-09)
+
+**Verdict (Loop 2): FAIL** — FR-1 resolved (Tier 1 #6 now passing) but FR-4 opens Tier 1 #1 (4 flows end-to-end).
+
+### Loop 2 Tier 1 findings summary
+
+| # | Tier 1 Criterion | Loop 1 | Loop 2 |
+|---|------------------|--------|--------|
+| 1 | 4 flows work end-to-end | FAIL (Flow D missing) | **FAIL** (Flow A now broken vs live — FR-4) |
+| 2 | 21 keyboard shortcuts | PASS | PASS (regression clean) |
+| 3 | 4-state coverage | PASS | PASS |
+| 4 | Stack-decision invariants | PASS | PASS |
+| 5 | Doctrine §1.1–§1.10 | PASS | PASS (regression clean) |
+| 6 | **URL seed round-trip byte-identical** | FAIL | **PASS** (FR-1 resolved) |
+| 7 | Live backend contract (envelope) | PASS | PASS (curl-level) — but NOT consumer-verified, see FR-4 |
+
+### Flow verification (Loop 2)
+
+- **Flow A** — FAIL against live. `api.generateTheme()` returns `themeBundle` but frontend accesses `pal.colors[...]`. Runtime TypeError.
+- **Flow B** — Likely FAIL. `exportCurrentFormat()` reads `pal.colors[0].hex` (actions.ts:130).
+- **Flow C** — Likely FAIL. Contrast matrix + explain call `pal.colors.map(c => c.hex)`.
+- **Flow D** — Plumbing PASS (Playwright 5/5 vs MSW); live backend untested and blocked by FR-4.
+
+### PRD is correct; frontend mistyped
+
+FR-4 is NOT a PRD gap. `docs/frontend-handoff.md:52` and `api-contract.yaml:730-747` both document `themeBundle` as the `/theme/generate` response. Frontend typed `PaletteResource` (with `colors[]`). FE-DEFECT, not SPEC-MISMATCH, not BACKEND-DEFECT.

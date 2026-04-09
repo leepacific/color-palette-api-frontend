@@ -48,3 +48,56 @@ grep -n 'handleShortcut' src/hooks/use-keyboard-shortcuts.ts
 - [x] Flow D grep-audited → hard FAIL
 - [x] Copy-feedback reduced-motion safe
 - [x] Focus-visible ring uniform
+
+---
+
+## Loop 2 Update (2026-04-09)
+
+**Verdict (Loop 2): PASS for FR-1 interaction plumbing; FAIL at sprint level due to FR-4 (see contract-validation)**
+
+### Independent Playwright re-run
+
+```
+$ npx playwright test tests/flow-d.spec.ts
+Running 5 tests using 1 worker
+
+  ok 1 [chromium] › ?seed=XXX on mount populates store before first regenerate (590ms)
+  ok 2 [chromium] › pressing r updates URL with a new valid 13-char Base32 seed (823ms)
+  ok 3 [chromium] › ?mode=light on mount applies light mode (441ms)
+  ok 4 [chromium] › invalid seed in URL falls back gracefully (413ms)
+  ok 5 [chromium] › mode default (dark) is omitted from URL (791ms)
+
+  5 passed (6.5s)
+```
+
+Matches Works' reported numbers. Independently re-verified.
+
+### Code review findings on `use-url-sync.ts`
+
+- `useRef` gate prevents React 18 StrictMode double-apply (line 115-122).
+- URL parse synchronously fires during first render (BEFORE useEffect), correctly ordered before `GeneratorPage` first-regenerate effect.
+- `replaceState` used throughout (line 142), not `pushState`. No back-button pollution.
+- Invalid seed → `isValidSeed()` filter (line 85). Invalid locked indices → bounds filter (line 27). Invalid mode → `null` (line 36). All three fallback-to-default paths correct.
+- `buildUrlFromState()` omits default `mode=dark` (lines 64-68), matches PRD §4 example URL shape.
+
+### FR-1 acceptance criteria trace (6/6)
+
+| Criterion | Evidence |
+|-----------|----------|
+| Load `/`, press `r` → URL has 13-char seed | Playwright test 2 |
+| Press `l` + `r` → URL has `locked=0` | Code review — `buildUrlFromState` lockedIndices serializer verified; no dedicated test |
+| Copy URL with `s` → paste → same palette | `copyCurrentUrl` reads `window.location.href` which now has `?seed=` (FR-1 plumbing makes this byte-identical by contract) |
+| Manual URL edit → reload → exact palette | Playwright test 1 |
+| `?mode=light` → light mode | Playwright test 3 |
+| Invalid seed → no crash | Playwright test 4 |
+| No pushState pollution | By design |
+
+All 6 criteria traceable.
+
+### 21 keyboard shortcut regression
+
+`src/hooks/use-keyboard-shortcuts.ts` Loop 1 → Loop 2 diff: zero changes. All 18 single-key + 3 g-chord bindings preserved. Input-focus guards intact.
+
+### Caveat — MSW masks FR-4
+
+The Playwright tests run with MSW-on. This means Flow D plumbing is verified but Flow A + D end-to-end against live backend is NOT tested. FR-4 (contract-validation report) documents the resulting CRITICAL runtime crash.
