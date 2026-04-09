@@ -41,7 +41,13 @@ test.describe('Loop 3 FR-4 — themeBundle adapter', () => {
     const body = (await res.json()) as ThemeBundleResource;
 
     expect(body.object).toBe('themeBundle');
-    expect(body.primaryInput?.hex).toBe('#0F172A');
+    // FB-008 post-deploy: backend now applies seed-driven OKLCH perturbation
+    // to primaryInput as well as the ramp. This test previously asserted
+    // byte-identity with the request (#0F172A). The new contract is:
+    //   primaryInput.hex is a function of (request.primary, seed), shape-valid
+    //   and stable across identical requests (verified by the round-trip test
+    //   below).
+    expect(body.primaryInput?.hex).toMatch(/^#[0-9A-F]{6}$/i);
     expect(body.primitive?.primary?.['500']?.hex).toMatch(/^#[0-9A-F]{6}$/i);
     expect(body.primitive?.secondary?.['500']?.hex).toMatch(/^#[0-9A-F]{6}$/i);
     expect(body.primitive?.accent?.['500']?.hex).toMatch(/^#[0-9A-F]{6}$/i);
@@ -83,8 +89,11 @@ test.describe('Loop 3 FR-4 — themeBundle adapter', () => {
     // Seed must round-trip for Flow D byte-identity.
     expect(palette.seed).toBe('94TMTHJ5QEQMW');
 
-    // First color should be the user's primary input (preserves export contract).
-    expect(palette.colors[0].hex.toUpperCase()).toBe('#7AE4C3');
+    // FB-008 post-deploy: backend perturbs primaryInput based on seed, so the
+    // adapter's colors[0] is the *derived* primary hex, not the request hex.
+    // The export contract is still preserved byte-identically via the Flow D
+    // round-trip test below — same {primary, seed} → same adapter output.
+    expect(palette.colors[0].hex).toMatch(/^#[0-9A-F]{6}$/i);
 
     // Simulate the 11 consumer access patterns — no TypeError allowed.
     expect(() => {

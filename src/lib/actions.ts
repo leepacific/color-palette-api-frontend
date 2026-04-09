@@ -3,6 +3,7 @@
 import { api, ApiError } from './api-client';
 import { useStore } from '@/state/store';
 import { randomSeed } from '@/lib/seed';
+import { seedToPrimary } from '@/lib/seed-to-primary';
 import type { CodeExportFormat } from '@/types/api';
 
 function toAppError(e: unknown, fallbackType = 'api_error'): {
@@ -67,10 +68,18 @@ export async function regeneratePalette(seed?: string) {
   // seed (e.g. keyboard `r`), mint a fresh one client-side and pass it to the
   // API — this guarantees the backend response + URL + store agree.
   const requestSeed = seed ?? randomSeed();
+  // FB-009 — Derive a dramatic primary deterministically from the seed on
+  // every regenerate. The backend's seed-driven OKLCH perturbation (FB-008)
+  // is too subtle on low-chroma inputs like the old default #0F172A, so we
+  // make the primary itself vary per seed. URL round-trip still works because
+  // the primary is a pure function of the seed — loading /?seed=XYZ on a
+  // fresh session will derive the identical primary and hit the same backend
+  // branch, producing the byte-identical palette required by PRD Tier 1 #6.
+  const requestPrimary = seedToPrimary(requestSeed);
   store.setPaletteLoading();
   try {
     const pal = await api.generateTheme({
-      primary: store.palette?.colors[0]?.hex ?? '#0F172A',
+      primary: requestPrimary,
       mode: 'both',
       semanticTokens: true,
       seed: requestSeed,

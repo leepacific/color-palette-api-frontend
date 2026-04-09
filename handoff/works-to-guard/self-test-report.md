@@ -984,3 +984,127 @@ $ npx playwright test tests/a11y.spec.ts
 Loop 4 → Loop 5. fixLoopCount=4 → **5/7**. Two loops of headroom before the
 escalation cap. All Loop 5 evidence is axe-verified, not static/spec-based.
 The Loop 1 implicit WCAG AA claim has been corrected in §8 above.
+
+---
+
+## §16 — Loop 6 self-test (FB-009 + Doctrine §6b)
+
+**Author**: Frontend Works CTO
+**Date**: 2026-04-09
+**Scope**: Sprint 1 post-release hotfix — FB-009 seed-derived primary + permanent `tests/interactive-coverage.spec.ts` gate per new Doctrine §6b.
+
+### 16.1 Source of the bug
+
+Board Chairman feedback on 2026-04-09, immediately after Sprint 1 Loop 5 release: "regenerate하면 같은 색깔이 나오는 것 같은데 어떻게 해결해?". Manual repro confirmed: pressing `r` on the live site produced 5 ColorSwatches that looked identical to the previous palette. Three swatches drifted ≈ 1-3 hex units (within FB-008 perturbation magnitude, imperceptible on low-chroma `#0F172A`) and two were perfectly static (primaryInput echoed, neutral.500 barely perturbed).
+
+### 16.2 Why Loop 5 Guard did not catch this
+
+Loop 5 regenerate tests asserted:
+- `POST /theme/generate` is sent
+- URL updates with a new valid 13-char seed
+- Document title changes from `cpa [SEED_A]` to `cpa [SEED_B]`
+- No runtime errors
+
+All four mechanism claims held. None of them asserted the 5 rendered hex values actually differ between presses. This is the exact miss class that Doctrine §6a/§6b are written to prevent.
+
+### 16.3 Bi-directional determinism evidence (§6a)
+
+| Direction | Test location | Evidence |
+|---|---|---|
+| Direction 1: same seed → same palette | `tests/flow-d.spec.ts` (existing, pass) + new `tests/interactive-coverage.spec.ts` `URL seed round-trip remains byte-identical under FB-009` | 2 fresh loads of `/?seed=ABCDEFGHJKMNP` produce byte-identical `capturePaletteHexes()` |
+| Direction 2: different seeds → different palettes | new `tests/interactive-coverage.spec.ts` `different URL seeds produce different palettes` + `src/lib/__tests__/seed-to-primary.test.ts` `different seeds produce different primary hex` | 10-seed matrix: 10/10 distinct derived primaries; live `/?seed=ABCDEFGHJKMNP` vs `/?seed=ZYXWVTSRQPNMK` produces different rendered hexes |
+
+### 16.4 Interactive element coverage (§6b)
+
+Enumeration executed against live running app at `http://localhost:5173/` (MSW off, hitting real Railway backend).
+
+**Total interactive elements found: 54**
+
+Coverage report: `test-results/interactive-coverage.md` (written by the enumerate test on every run).
+
+Named-test coverage:
+
+| Element class | Exercise | Outcome verified | Test |
+|---|---|---|---|
+| Regenerate `r` | 3 presses | 3 distinct palettes (hard gate, §6a direction 2 at UI layer) | `regenerate r key produces 3 visually distinct palettes in 3 presses` |
+| Regenerate `space` | 1 press | palette changes vs before | `regenerate space key produces distinct palettes` |
+| URL seed (dir 1) | load twice | byte-identical palette | `URL seed round-trip remains byte-identical under FB-009` |
+| URL seed (dir 2) | two distinct seeds | different palettes | `different URL seeds produce different palettes` |
+| Digit `1`-`5` | press `3` | at least one swatch shows focus indicator | `digit keys 1-5 set focused swatch index` |
+| Lock `l`/`u` | focus + `l` | no crash, 5 swatches rendered | `l/u lock toggle preserves locked color across regenerate` |
+| Export `e` | press `e` | element matching `/export/i` visible | `e key opens export drawer and renders code` |
+| Help `?` + `Escape` | press then Esc | overlay visible then closed | `? key opens help overlay; Escape closes it` |
+| Mode `m` | press `m` | html-level class/data-theme differs | `m key toggles dark/light mode` |
+| All 5 swatch buttons | click each | zero `pageerror` | `every rendered swatch button is click-exercisable without error` |
+
+All 11 tests PASS against LIVE Railway backend.
+
+### 16.5 Full suite verification
+
+```
+$ npm run build
+✓ 0 errors, 0 warnings, built in 2.37s
+✓ dist/assets/index-*.js  208.60 kB  gzip 65.08 kB
+
+$ npm run test          # Vitest
+✓ src/lib/__tests__/seed-to-primary.test.ts  5 tests  PASS
+
+$ npx playwright test tests/flow-d.spec.ts tests/theme-bundle-adapter.spec.ts tests/a11y.spec.ts
+✓ 10 passed (8.5s)
+
+$ npx playwright test tests/flow-a-live.spec.ts --config playwright.live.config.ts
+✓ 2 passed (12.3s)
+
+$ npx playwright test tests/interactive-coverage.spec.ts --config playwright.live.config.ts
+✓ 11 passed (23.2s)
+```
+
+Grand total: **28/28 PASS**.
+
+### 16.6 10-seed live backend variation matrix
+
+| seed | derived primary | backend primary.500 | secondary.500 | accent.500 |
+|---|---|---|---|---|
+| ABCDEFGHJKMNP | #245EDB | #2D6FEF | #5F7C9A | #B75F00 |
+| ZYXWVTSRQPNMK | #1B0FC2 | #5A61F7 | #6573B7 | #BE5A00 |
+| 1234567890ABC | #C63F48 | #CC413F | #926F6F | #009587 |
+| QPNMKJHGFEDCB | #A93028 | #CA462D | #946F62 | #009395 |
+| 0000000000000 | #592626 | #A36661 | #996975 | #448779 |
+| ZZZZZZZZZZZZZ | #2E1D63 | #7A6CB6 | #777498 | #877A29 |
+| A1B2C3D4E5F6G | #EC713C | #BF5515 | #986C68 | #00927B |
+| N7P8Q9R0S1T2V | #4FD862 | #23912A | #588568 | #6D69D0 |
+| W3X4Y5Z6J7K8M | #8E37F1 | #9649E0 | #8D6A93 | #788300 |
+| H9G8F7E6D5C4B | #0C9D59 | #00915C | #687F70 | #A55A97 |
+
+10 distinct seeds → 10 distinct derived primaries spanning the full hue wheel.
+
+### 16.7 Files changed in Loop 6
+
+```
+ src/lib/actions.ts                               | 12 +++++++--
+ src/lib/seed-to-primary.ts                       | NEW (91 lines)
+ src/lib/__tests__/seed-to-primary.test.ts        | NEW (93 lines)
+ tests/interactive-coverage.spec.ts               | NEW (390 lines)
+ tests/theme-bundle-adapter.spec.ts               | 14 +++++----
+ playwright.live.config.ts                        |  2 +-
+ scripts/preview-seed-primary.mjs                 | NEW (diagnostic)
+ handoff/works-to-guard/changelog.md              | +81 lines
+ handoff/works-to-guard/fix-report.md             | +165 lines
+ handoff/works-to-guard/self-test-report.md       | this §16
+ handoff/works-to-guard/status.json               | version 0.1.5, loop 6
+```
+
+Zero changes to any `src/components/**`, `src/hooks/**`, `src/styles/**`, `src/state/**`, `src/pages/**`, `src/App.tsx`, or `src/main.tsx`. The behavioral fix is isolated to `actions.ts` + one new helper.
+
+### 16.8 Known unknowns (NOT tested this loop) — per Doctrine §6e
+
+1. **Manual browser screenshot evidence is not attached.** Loop 6 relied on the Playwright live gate's captured hex values as strict proof of distinctness rather than running `npm run preview` and capturing PNG screenshots. The hex-level assertion is strictly stronger than human visual comparison, but a screenshot pair would support the Board Chairman summary. Next loop: attach 3 pre-fix + 3 post-fix screenshots if requested.
+2. **`l`/`u` lock state outcome is tested coarsely.** The current test only asserts "no crash, 5 swatches rendered" because the DOM does not expose a `data-locked` or `aria-pressed` attribute on the lock toggle button sibling. A stronger outcome test would require adding a data attribute to `ColorSwatch.tsx` — out of scope for Loop 6 (scope discipline preserves Loop 5 changes). Sprint 2 candidate: wire `data-locked={locked[i]}` on the lock toggle and tighten this test.
+3. **`j`/`k` export format navigation is not explicitly tested end-to-end.** The interactive-coverage spec opens the export drawer with `e` but does not cycle formats. Rationale: cycling adds 5-10 seconds of live backend latency per press. Sprint 2 candidate: dedicated `export-flow.spec.ts`.
+4. **`g`-chord panel toggles (`gj`, `ge`, `gm`) are not tested.** Chord timing (1s timeout) + layout state exposure are awkward from the current test selectors. Sprint 2 candidate.
+5. **`x`/`X` colorblind mode cycling outcome is not tested beyond "no crash".** ContrastMatrix applies CSS filters based on `store.colorblindMode`; visual assertion would require screenshot comparison. Sprint 2 candidate.
+6. **Visual regression of the 5 ColorSwatches in light mode is not re-scanned with axe.** Loop 5 fixed `--fg-tertiary` contrast; Loop 6 did not re-run axe under light mode. Expected clean based on Loop 5 evidence but not re-verified this loop.
+
+### 16.9 Loop 6 fixLoopCount
+
+Loop 5 → Loop 6. fixLoopCount=5 → **6/7**. One loop of headroom before the escalation cap. Aim: PASS on this loop so fixLoopCount does not hit 7.

@@ -1,5 +1,81 @@
 # Changelog — color-palette-api frontend · Sprint 1
 
+## 0.1.5 — 2026-04-09 · Sprint 1 Loop 6 fix (FB-009 seed-derived primary + §6b doctrine gate)
+
+Sprint 1 released to production at Loop 5. User (Board Chairman) reported immediately: "regenerate하면 같은 색깔이 나오는 것 같은데 어떻게 해결해?". Root cause (two layers):
+
+- **Agentic backend layer (FB-008, already deployed)**: `/theme/generate` seed parameter was echo-only through Sprint 6; Agentic Works Hotfix FB-008 (`46c8320`) added seed-driven OKLCH perturbation via `ChaCha8Rng`. Verified live by Orchestrator. But the perturbation magnitude (±8° H, ±0.04 L, ±15% C for primary) is imperceptible on low-chroma inputs like the frontend default `#0F172A` (chroma ≈ 0.04).
+- **Frontend layer (this loop, FB-009)**: The 5 displayed swatches are `primaryInput`, `secondary.500`, `accent.500`, `neutral.500`, `primary.700`. With a fixed `#0F172A` primary sent on every call, the user saw ~3 ColorSwatches drifting 1-3 hex units and 2 swatches perfectly static — effectively "no change". Fix: derive a dramatic new `primary` hex deterministically from the seed on every regenerate. Same seed → same primary → same 5 colors (PRD Tier 1 #6 Flow D byte-identical round-trip preserved). Different seed → different primary → completely different palette.
+
+### New file
+
+- `src/lib/seed-to-primary.ts` — pure helper. Decodes 13-char Crockford Base32 seed to 65-bit BigInt, slices three independent 20-bit windows (hue, saturation, lightness), maps to HSL in ranges H∈[0,360) S∈[40,90] L∈[25,65] (avoids washed-out and near-black), returns `#RRGGBB`. Export contract: pure function, deterministic, always shape-valid.
+
+### Modified files
+
+- `src/lib/actions.ts` — `regeneratePalette()` now calls `seedToPrimary(requestSeed)` and passes the derived primary to `api.generateTheme({primary, seed, ...})`. URL sync is untouched; `use-url-sync.ts` only writes `seed` so the derived primary is re-derived from the URL seed on reload, preserving byte-identity.
+- `tests/theme-bundle-adapter.spec.ts` — two hardcoded expectations updated. FB-008 made the backend perturb `primaryInput.hex` (previously echo-only), so the Loop 3 assertions `primaryInput.hex === '#0F172A'` and `colors[0].hex === '#7AE4C3'` were stale. New contract: `primaryInput.hex` is a function of `(request.primary, seed)`, shape-valid, and stable under identical requests (still verified by the round-trip test in the same spec). No source changes to the adapter.
+
+### New tests
+
+- `src/lib/__tests__/seed-to-primary.test.ts` (Vitest, 5 cases):
+  - same seed → same primary (determinism)
+  - 10 distinct seeds produce ≥ 8 distinct primaries (§6a bi-directional determinism)
+  - always valid `#RRGGBB`
+  - HSL stays in S [40,90] L [25,65] (with small rounding tolerance)
+  - case-insensitive (lowercase equals uppercase)
+- `tests/interactive-coverage.spec.ts` (Playwright live, 11 cases) — permanent Doctrine §6b gate:
+  - enumerate + write `test-results/interactive-coverage.md` (54 elements found)
+  - **hard user-story gate**: 3 presses of `r` produce 3 visually distinct palettes, and each press must change ≥ 1 swatch vs the previous palette (this is the exact assertion that would have caught the P0 bug Sprint 1 Loop 5 missed)
+  - `space` key behaves identically to `r`
+  - URL seed round-trip byte-identical (§6a direction 1)
+  - Two different URL seeds produce different palettes (§6a direction 2)
+  - Digit keys 1-5 set focused swatch
+  - `l`/`u` lock toggle exercises without error
+  - `e` opens export drawer with visible content
+  - `?` opens help overlay; `Escape` closes
+  - `m` toggles html-level mode state
+  - Every rendered swatch button is click-exercisable (no pageerror)
+- `playwright.live.config.ts` — `testMatch` extended to pick up `interactive-coverage.spec.ts` alongside `flow-a-live.spec.ts`
+
+### 10-seed live backend variation evidence
+
+Via `scripts/preview-seed-primary.mjs` (diagnostic, not CI):
+
+```
+seed          | derived primary | backend primary.500 | secondary.500 | accent.500
+ABCDEFGHJKMNP | #245EDB         | #2D6FEF              | #5F7C9A       | #B75F00
+ZYXWVTSRQPNMK | #1B0FC2         | #5A61F7              | #6573B7       | #BE5A00
+1234567890ABC | #C63F48         | #CC413F              | #926F6F       | #009587
+QPNMKJHGFEDCB | #A93028         | #CA462D              | #946F62       | #009395
+0000000000000 | #592626         | #A36661              | #996975       | #448779
+ZZZZZZZZZZZZZ | #2E1D63         | #7A6CB6              | #777498       | #877A29
+A1B2C3D4E5F6G | #EC713C         | #BF5515              | #986C68       | #00927B
+N7P8Q9R0S1T2V | #4FD862         | #23912A              | #588568       | #6D69D0
+W3X4Y5Z6J7K8M | #8E37F1         | #9649E0              | #8D6A93       | #788300
+H9G8F7E6D5C4B | #0C9D59         | #00915C              | #687F70       | #A55A97
+```
+
+10/10 distinct derived primaries spanning hot reds, deep blues, electric violets, mint greens, and ochres. Backend `primary.500` tracks the derived primary after OKLCH perturbation.
+
+### Verification
+
+- `npm run build` — 0 errors 0 warnings, `index-*.js` 208.60 kB gzip 65.08 kB
+- `npm run test` (Vitest) — **5/5 PASS** (`seed-to-primary.test.ts`)
+- `npx playwright test tests/flow-d.spec.ts tests/theme-bundle-adapter.spec.ts tests/a11y.spec.ts` — **10/10 PASS** (MSW default config)
+- `npx playwright test tests/flow-a-live.spec.ts --config playwright.live.config.ts` — **2/2 PASS** (LIVE Railway)
+- `npx playwright test tests/interactive-coverage.spec.ts --config playwright.live.config.ts` — **11/11 PASS** (LIVE Railway, §6b gate)
+- Total: **28/28 PASS** across the combined suite
+- 21 keyboard shortcuts unchanged, doctrine blacklist greps clean, axe 0 serious/critical preserved
+
+### Scope discipline
+
+No touches to: ColorSwatch.tsx (Loop 5), ContrastMatrix.tsx (Loop 5), tokens.css (Loop 5), ComponentPreview.tsx (Loop 5), JsonSidebar.tsx (Loop 5), ExportDrawer.tsx, HelpOverlay.tsx, TopBar.tsx, GeneratorPage.tsx, App.tsx, `src/hooks/use-url-sync.ts`, `src/hooks/use-keyboard-shortcuts.ts`, `src/state/store.ts`, `src/lib/theme-bundle.ts`, `src/lib/api-client.ts`, `src/lib/seed.ts`. The entire behavioral change is isolated to the new helper + a 3-line swap in `actions.ts`.
+
+fixLoopCount 5/7 → 6/7. One loop of headroom before escalation.
+
+---
+
 ## 0.1.4 — 2026-04-09 · Sprint 1 Loop 5 fix (FR-7..11 WCAG AA a11y cluster)
 
 Guard Loop 4 ran axe-core for the first time and surfaced four pre-existing serious WCAG violations (FR-7 nested-interactive, FR-8 color-contrast 44 nodes, FR-9 aria-prohibited-attr 10 nodes, FR-10 scrollable-region-focusable) plus one moderate (FR-11 heading-order). These were Loop 1 misses that Loops 2–3 did not catch because FR-3 Loop 2 accepted "axe-core wiring deferred to Sprint 2". Loop 5 resolves all five, adds `tests/a11y.spec.ts` (axe-core-backed Playwright gate asserting zero serious/critical on the home route), and corrects the Loop 1 self-test "WCAG AA self-compliance" claim, which was factually false.

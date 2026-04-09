@@ -1,4 +1,138 @@
-# Fix Report — color-palette-api frontend · Sprint 1 · Loops 2–5
+# Fix Report — color-palette-api frontend · Sprint 1 · Loops 2–6
+
+## Loop 6 — FB-009 seed-derived primary + Doctrine §6b gate (2026-04-09, post-release hotfix)
+
+**Author**: Frontend Works CTO
+**Scope**: Two-part hotfix implementing the new Frontend-Builder Doctrine §6 rules:
+- Part A (FB-009): make `regeneratePalette()` derive a dramatic new primary hex deterministically from the seed on every press, so the 5 visible ColorSwatches visibly differ across `r`/`space` presses.
+- Part B (§6b): write the permanent exhaustive interactive-element test gate as the new playbook rule.
+
+**Verdict**: both parts delivered; full 28-test suite (Vitest 5 + Playwright MSW 10 + Playwright LIVE 13) green; hard user-story gate "3 presses of `r` produce 3 visually distinct palettes" PASS against LIVE Railway.
+
+### FB-009 — Root cause cascade
+
+Sprint 1 Loop 5 released with the following chain of hidden assumptions:
+
+1. Backend `/theme/generate` seed was echo-only through Sprint 6 (verified via curl on 2026-04-09 against pre-FB-008 deploy).
+2. Agentic Works Hotfix FB-008 (`46c8320`) added seed-driven OKLCH perturbation. Magnitudes: ±8° H, ±0.04 L, ±15% C for primary. Bi-directional determinism test added in backend passed.
+3. Frontend always sent `primary: store.palette?.colors[0]?.hex ?? '#0F172A'`. Initial palette → `#0F172A` → chroma ≈ 0.04 (very low). FB-008 perturbations of chroma scale with the base chroma, so the perturbed primary diverges by 1-3 hex units — imperceptible.
+4. Of the 5 visible ColorSwatches, 3 end up ≈ 1-3 hex units apart across regenerates and 2 (primaryInput stored back into store + neutral.500 largely untouched) look static. User perceives "no change".
+5. Guard Loop 5 tested mechanism (`POST /theme/generate` was sent, URL updated with new seed, `cpa [SEED]` title changed) but not the outcome (the 5 rendered hex values actually differ visually).
+
+This is the exact category of miss that the new Doctrine §6 rules are designed to prevent. Part B of this loop writes those rules into a permanent regression gate.
+
+### FB-009 — Implementation
+
+**New file**: `src/lib/seed-to-primary.ts` (pure helper, 70 lines).
+
+Algorithm:
+1. Decode 13-char Crockford Base32 seed → 65-bit BigInt (`seedToBigInt`).
+2. Three independent 20-bit slices: top bits (45-64), mid bits (22-41), low bits (0-19). Independent slices avoid H/S/L correlation — if we only used `% 360`, `% 100`, `% 100` on the same low bits, visually similar seeds would produce visually similar colors.
+3. Map:
+   - Hue: `top % 360` → [0, 360)
+   - Saturation: `40 + (mid % 51)` → [40, 90] (avoids washed-out grey)
+   - Lightness: `25 + (low % 41)` → [25, 65] (avoids near-black and blown-out white)
+4. HSL → hex via standard formula.
+5. Pure function: no Date.now, no Math.random, no globals. Deterministic.
+
+**Modified**: `src/lib/actions.ts` (7 lines net change). `regeneratePalette(seed?)` now:
+
+```ts
+const requestSeed = seed ?? randomSeed();
+const requestPrimary = seedToPrimary(requestSeed);  // NEW
+const pal = await api.generateTheme({
+  primary: requestPrimary,  // was: store.palette?.colors[0]?.hex ?? '#0F172A'
+  mode: 'both',
+  semanticTokens: true,
+  seed: requestSeed,
+});
+```
+
+**URL round-trip preservation**: `src/hooks/use-url-sync.ts` was already writing only `seed` (verified lines 44-70). The derived primary is a pure function of the seed, so loading `/?seed=XYZ` in a fresh session derives the identical primary and hits the identical backend branch → byte-identical palette. PRD Tier 1 #6 Flow D round-trip is preserved, and the existing `tests/flow-d.spec.ts` 5/5 continues to pass as regression evidence.
+
+**Test fix-up (scope adjacent)**: `tests/theme-bundle-adapter.spec.ts` had two hardcoded expectations from Loop 3 that assumed `primaryInput.hex` echoes the request primary. FB-008 made backend perturb `primaryInput` too. Updated both assertions to shape checks (`/^#[0-9A-F]{6}$/i`) since the stable-under-identical-requests guarantee is already proven by the existing round-trip test at line 110. No source changes to the adapter itself.
+
+### Part B — Doctrine §6b gate
+
+**New file**: `tests/interactive-coverage.spec.ts` (390 lines, Playwright). Runs against LIVE backend (MSW off) — MSW stubs would hide FB-008/FB-009 class regressions.
+
+Structure:
+
+1. **Enumerate test** (`enumerate every interactive element and write coverage report`): scans the full selector set from §6b (button, a, input, textarea, select, roles button/link/checkbox/switch/tab/menuitem, and any `[tabindex]:not([tabindex="-1"])`). Writes `test-results/interactive-coverage.md` with the full table and a sanity floor `.toBeGreaterThan(5)`. Verified count on current build: **54 interactive elements**.
+
+2. **Hard user-story gate** (`regenerate r key produces 3 visually distinct palettes in 3 presses`): captures 4 palette snapshots (1 initial + 3 post-press), asserts:
+   - all 3 post-press palettes are distinct from each other (`new Set(serialized).size === 3`)
+   - every press changes at least one of the 5 swatches vs the immediately preceding palette (this is the §6a mutation-sanity check baked into the assertion — it would catch a mutation where `regeneratePalette` is mocked to return a fixed seed).
+
+   **This is the exact test that would have caught Sprint 1 Loop 5's P0 miss.** Runs against LIVE Railway, so it proves the full stack (seed → derived primary → backend perturbation → adapter → store → DOM).
+
+3. **Space key regeneration** — same outcome as `r`.
+
+4. **§6a direction 1**: `/?seed=X` loaded twice → same 5 hexes (byte-identical round-trip).
+
+5. **§6a direction 2**: `/?seed=X` and `/?seed=Y` → different 5 hexes (different seeds → different palette — the specific direction that was absent from Sprint 1 Guard).
+
+6. **Digit keys 1-5**: after pressing `3`, at least one swatch shows a focus indicator (aria-pressed, data-focused, or class name containing focus/ring).
+
+7. **`l`/`u` lock toggle**: exercises without error and the swatch grid continues to render 5 items. Outcome test is coarse because the app doesn't expose a data-locked attr (known unknown — see self-test §16).
+
+8. **`e` key export drawer**: opens and something with text `/export/i` becomes visible.
+
+9. **`?` key help overlay**: opens, text `/keyboard|shortcuts|help/i` visible, `Escape` closes.
+
+10. **`m` key mode toggle**: html-level class or data-theme attr changes.
+
+11. **Every rendered swatch button click-exercised**: clicks all 5 in sequence, asserts zero `pageerror` events.
+
+**Playwright live config**: `playwright.live.config.ts` `testMatch` extended to `/(flow-a-live|interactive-coverage)\.spec\.ts$/`.
+
+### Verification (full suite)
+
+| Suite | Config | Result |
+|---|---|---|
+| Vitest `seed-to-primary.test.ts` | `npm run test` | **5/5 PASS** |
+| `flow-d.spec.ts` | default (MSW) | **5/5 PASS** |
+| `theme-bundle-adapter.spec.ts` | default (hits live backend from Node) | **4/4 PASS** |
+| `a11y.spec.ts` | default (MSW) | **1/1 PASS** (0 serious, 0 critical) |
+| `flow-a-live.spec.ts` | `playwright.live.config.ts` | **2/2 PASS** (LIVE Railway) |
+| `interactive-coverage.spec.ts` | `playwright.live.config.ts` | **11/11 PASS** (LIVE Railway, §6b gate) |
+| **Total** | | **28/28 PASS** |
+
+`npm run build` — 0 errors, 0 warnings, bundle size unchanged (`index-*.js` 208.60 kB, gzip 65.08 kB).
+
+### 10-seed live backend variation matrix
+
+`scripts/preview-seed-primary.mjs` (diagnostic script, not CI):
+
+```
+seed          | derived primary | backend primary.500 | secondary.500 | accent.500
+ABCDEFGHJKMNP | #245EDB         | #2D6FEF              | #5F7C9A       | #B75F00
+ZYXWVTSRQPNMK | #1B0FC2         | #5A61F7              | #6573B7       | #BE5A00
+1234567890ABC | #C63F48         | #CC413F              | #926F6F       | #009587
+QPNMKJHGFEDCB | #A93028         | #CA462D              | #946F62       | #009395
+0000000000000 | #592626         | #A36661              | #996975       | #448779
+ZZZZZZZZZZZZZ | #2E1D63         | #7A6CB6              | #777498       | #877A29
+A1B2C3D4E5F6G | #EC713C         | #BF5515              | #986C68       | #00927B
+N7P8Q9R0S1T2V | #4FD862         | #23912A              | #588568       | #6D69D0
+W3X4Y5Z6J7K8M | #8E37F1         | #9649E0              | #8D6A93       | #788300
+H9G8F7E6D5C4B | #0C9D59         | #00915C              | #687F70       | #A55A97
+```
+
+10 distinct seeds → 10 distinct derived primaries spanning the full hue wheel. Backend `primary.500` tracks the derived primary through the OKLCH perturbation pipeline. The user will see vividly different palettes on every `r` press, not 1-3 hex unit drifts.
+
+### What Loop 6 deliberately did NOT touch
+
+- `src/components/*` — all 22 components (Loop 5 passed them; no regressions expected)
+- `src/styles/tokens.css` — Loop 5 bumped `--fg-tertiary`, unchanged here
+- `src/hooks/use-url-sync.ts` — already correct (only `seed` is URL-persisted)
+- `src/hooks/use-keyboard-shortcuts.ts` — 21 shortcuts, unchanged
+- `src/lib/theme-bundle.ts` — adapter unchanged
+- `src/lib/api-client.ts` — request/response shapes unchanged
+- `src/lib/seed.ts` — `randomSeed()`/`isValidSeed()` unchanged
+- `src/state/store.ts` — unchanged
+- Backend repo (color-palette-api root) — untouched per scope; FB-008 is already deployed
+
+---
 
 ## Loop 5 — WCAG AA a11y cluster FR-7..11 (2026-04-09)
 
