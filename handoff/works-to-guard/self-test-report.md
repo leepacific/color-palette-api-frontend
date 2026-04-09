@@ -472,3 +472,204 @@ Modified:
 
 Loop 1 → Loop 2. fixLoopCount=1 → 2. Well below the 7-loop cap.
 
+---
+
+## §13 Loop 3 verification — FR-4 adapter fix (2026-04-09)
+
+### 13.1 Scope
+
+Strictly limited to FR-4 from Guard Loop 2 fix-requests. FR-1/FR-2/FR-3 not
+touched — Loop 2 PASS criteria preserved.
+
+### 13.2 Live curl verification (phase 0.5 per Loop 3 instructions)
+
+All 3 curl probes executed before committing to a path.
+
+**Probe 1 — `/theme/generate` (documented Flow A endpoint)**
+```bash
+$ curl -X POST https://.../api/v1/theme/generate \
+    -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+    -d '{"primary":"#0F172A","mode":"both","semanticTokens":true,"seed":"94TMTHJ5QEQMW"}'
+```
+Result: HTTP 200, body shape:
+```
+{object: "themeBundle", id, createdAt, mode, primaryInput, primitive: {primary, secondary, accent, neutral, success, warning, error}, semantic, quality, wcag, warnings, framework, generatedAt, extendedSemantic, seed, slotSource}
+```
+- No top-level `colors[]` — confirms Guard's FR-4 diagnosis.
+- Each `primitive.*` has 11 ramp steps (`50`-`950`).
+- `seed` top-level echoes the request seed.
+- Two back-to-back calls with identical `{primary, seed}` produced **byte-identical colors** (ids/timestamps differ, color data matches).
+
+**Probe 2 — `/palette/random?seed=` (Guard's Path A candidate)**
+```bash
+$ curl ".../api/v1/palette/random?seed=94TMTHJ5QEQMW" -H "X-API-Key: $KEY"
+```
+First call: `colors[0].hex = "#9F0000"`, `colors[1].hex = "#856A23"`, ...
+Second call (same seed, seconds later): `colors[0].hex = "#008700"`, `colors[1].hex = "#6CB3DC"`, ...
+
+**FINDING: `/palette/random?seed=` is NOT deterministic on live.**
+
+This rules out Path A — switching to it would silently break Flow D byte-identical
+round-trip, regressing Loop 2's FR-1 fix. Loop 3 commits to Path B.
+
+**Probe 3 — `POST /palette/random`**
+```bash
+$ curl -X POST .../api/v1/palette/random -H "X-API-Key: $KEY" -H "Content-Type: application/json" -d '{"paletteSize":5}'
+```
+Result: empty body (405 or similar). Only `GET` supported. Another reason Path A is non-viable for seeded regeneration.
+
+### 13.3 Build
+
+```
+$ npm run build
+> color-palette-api-frontend@0.1.2 build
+> tsc -b && vite build
+vite v5.4.21 building for production...
+✓ 298 modules transformed.
+dist/assets/index-BWTbsmnl.css    43.26 kB │ gzip: 19.50 kB
+dist/assets/index-Ce6RxM63.js    210.20 kB │ gzip: 65.96 kB
+dist/assets/browser-DbK-bcFO.js  254.59 kB │ gzip: 90.18 kB
+✓ built in 2.71s
+```
+**0 TypeScript errors, 0 Vite warnings.** Bundle +0.61 kB gzipped vs Loop 2 (adapter code + ThemeBundleResource type). Well under 200 kB Tier 2 budget.
+
+### 13.4 Adapter unit + live-integration tests
+
+`tests/theme-bundle-adapter.spec.ts` — **4/4 PASS** against LIVE Railway v1.5.0 backend.
+
+```
+$ npx playwright test tests/theme-bundle-adapter.spec.ts
+Running 4 tests using 1 worker
+  ok 1 › live /theme/generate returns themeBundle shape (backend conformance) (346ms)
+  ok 2 › adapter flattens live themeBundle to PaletteResource with 5 valid colors (192ms)
+  ok 3 › adapter is deterministic for fixed {primary, seed} (Flow D round-trip) (113ms)
+  ok 4 › adapter handles stub themeBundle without crashing (9ms)
+  4 passed (4.4s)
+```
+
+These tests use Node's `fetch` to call the live backend directly, bypassing
+browser CORS. They are the authoritative evidence for Loop 3 FR-4 resolution:
+
+- **Test 1** proves the backend is conformant — response has `object:"themeBundle"`, `primitive.primary.500.hex` is a valid hex, and `seed` echoes the request.
+- **Test 2** proves the adapter produces a valid 5-color `PaletteResource` from a LIVE response (not a synthetic stub). Every color has valid hex/rgb/hsl/oklch. `colors[0]` is `primaryInput` (preserves the export contract). Seed round-trips. Simulates the 11 consumer access patterns and asserts no throw.
+- **Test 3** proves Flow D byte-identity: two parallel calls with fixed `{primary, seed}` produce identical `colors.hex` arrays.
+- **Test 4** is a pure synthetic-bundle unit check, guarding against adapter regressions if the live shape ever drifts.
+
+### 13.5 Flow D regression (Loop 2 FR-1 preserved)
+
+`tests/flow-d.spec.ts` — **5/5 PASS** (re-run independently).
+
+```
+$ npx playwright test tests/flow-d.spec.ts
+Running 5 tests using 1 worker
+  ok 1 › ?seed=XXX on mount populates store before first regenerate (594ms)
+  ok 2 › pressing r updates URL with a new valid 13-char Base32 seed (792ms)
+  ok 3 › ?mode=light on mount applies light mode (417ms)
+  ok 4 › invalid seed in URL falls back gracefully (no crash, random seed used) (419ms)
+  ok 5 › mode default (dark) is omitted from URL (792ms)
+  5 passed (6.4s)
+```
+
+Loop 2 FR-1 fix (`src/hooks/use-url-sync.ts`) is untouched in Loop 3. URL seed
+round-trip continues to work.
+
+### 13.6 MSW-off browser smoke — partial (CORS-blocked, see §13.8)
+
+`tests/flow-a-live.spec.ts` was created to exercise the adapter through a real
+browser with `VITE_USE_MSW=false`. Two dedicated files were added to drive this:
+- `playwright.live.config.ts` — separate config targeting port 5173 (matches the backend CORS allow-list for localhost).
+- `scripts/dev-live.mjs` — cross-platform dev server launcher that writes a temporary `.env.local` with `VITE_USE_MSW=false` (Vite's `.env.local` has higher precedence than `.env`, which is how we force MSW off without mutating the committed `.env`).
+
+**Result**: the dev server came up, the page loaded, MSW was confirmed OFF
+(real requests to `https://color-palette-api-production-a68b.up.railway.app`
+were observed via Playwright's `page.on('request')`). However, the browser
+received CORS preflight rejections — see §13.8.
+
+Because the browser-level smoke was blocked by a **pre-existing backend CORS
+gap unrelated to FR-4**, the authoritative FR-4 evidence is the Node-level
+adapter + live-integration suite in §13.4 which bypasses the browser preflight.
+
+### 13.7 Doctrine grep (src/)
+
+```
+$ grep -riE "seamless|empower|revolutioniz|unleash|elevate your|혁신적|새로운 차원" src/
+(no results)  PASS
+
+$ grep -ri "Inter[,']" src/
+(no results)  PASS
+
+$ grep -riE "cubic-bezier\([^)]*1\.[0-9]" src/
+(no results)  PASS
+```
+
+### 13.8 Loop 3 discovery — backend CORS gap (OUT OF SCOPE)
+
+During the MSW-off browser smoke attempt, Chromium logged:
+
+```
+Access to fetch at 'https://.../api/v1/theme/generate' from origin 'http://localhost:5173'
+has been blocked by CORS policy: Request header field idempotency-key is not
+allowed by Access-Control-Allow-Headers in preflight response.
+```
+
+Curl-verified preflight reply (`OPTIONS /api/v1/theme/generate` with `Origin: http://localhost:5173`):
+```
+access-control-allow-origin: http://localhost:5173
+access-control-allow-headers: content-type,x-api-key,authorization
+access-control-allow-methods: GET,POST,DELETE,OPTIONS
+```
+
+The allow-headers list is missing `idempotency-key` and `request-id`. The frontend
+sends both per the documented Stripe-style idempotency contract on POST
+`/theme/generate` and `/export/code`. Curl-based Guard Loop 1 contract verification
+did not trigger CORS (curl does not preflight), so this was never observed before.
+
+**Classification**: pre-existing backend CORS misconfiguration, unrelated to FR-4.
+
+**Why not Callback B now**:
+- FR-4 scope is strictly the TypeScript response-type mismatch. Fixed and verified.
+- The CORS gap would exist with or without the FR-4 fix — it is a parallel issue.
+- Loop 3 explicit instructions: "STRICTLY limited to FR-4".
+
+**Recommendation to Guard**: after Loop 3 PASS on the frontend, file a separate
+Callback Protocol B against the backend for a 1-line CORS header addition:
+```rust
+// pseudo-code
+CorsLayer::new()
+    .allow_headers([CONTENT_TYPE, HeaderName::from_static("x-api-key"), AUTHORIZATION,
+                    HeaderName::from_static("idempotency-key"),  // ADD
+                    HeaderName::from_static("request-id")])       // ADD
+```
+
+I did NOT touch the backend repo or submit a callback in Loop 3 — per harness
+rules (FE-only scope, no cross-repo writes).
+
+### 13.9 Files touched in Loop 3
+
+**Created (5)**:
+- `src/lib/theme-bundle.ts`
+- `tests/theme-bundle-adapter.spec.ts`
+- `tests/flow-a-live.spec.ts`
+- `playwright.live.config.ts`
+- `scripts/dev-live.mjs`
+
+**Modified (8)**:
+- `src/types/api.ts`
+- `src/lib/api-client.ts`
+- `src/mocks/stub-data.ts`
+- `src/mocks/handlers.ts`
+- `handoff/works-to-guard/fix-report.md`
+- `handoff/works-to-guard/changelog.md`
+- `handoff/works-to-guard/self-test-report.md` (this §13)
+- `handoff/works-to-guard/status.json` (version → 0.1.2, loop → 3)
+
+**NOT touched (preserves Loop 2 PASS)**:
+- `src/hooks/use-url-sync.ts` — FR-1 Loop 2 fix
+- All 11 crash-site files (`src/components/*`, `src/hooks/use-keyboard-shortcuts.ts`, `src/lib/actions.ts`) — adapter shields them
+- `playwright.config.ts` — MSW-on canonical config untouched
+- `tests/flow-d.spec.ts` — FR-1 regression guard untouched, 5/5 PASS
+
+### 13.10 Loop 3 fixLoopCount
+
+Loop 2 → Loop 3. fixLoopCount=2 → 3/7. Well below the 7-loop escalation cap.
+

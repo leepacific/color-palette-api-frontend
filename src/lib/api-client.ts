@@ -9,7 +9,9 @@ import type {
   ContrastMatrixResource,
   PaletteExplanationResource,
   PaletteResource,
+  ThemeBundleResource,
 } from '@/types/api';
+import { themeBundleToPaletteResource } from './theme-bundle';
 
 const BASE_URL =
   (import.meta.env.VITE_COLOR_PALETTE_API_BASE_URL as string | undefined) ??
@@ -99,12 +101,18 @@ export const api = {
   async randomPalette(): Promise<PaletteResource> {
     return apiFetch<PaletteResource>('/api/v1/palette/random');
   },
+  // Loop 3 FR-4: /theme/generate returns ThemeBundleResource (not PaletteResource).
+  // We fetch the raw themeBundle, then adapt it to a PaletteResource at the
+  // boundary so all 11 Sprint 1 consumer sites (swatch grid, contrast matrix,
+  // explain panel, keyboard shortcuts, export flow) keep working untouched.
+  // See src/lib/theme-bundle.ts for the adapter design rationale.
   async generateTheme(req: ThemeGenerateRequest): Promise<PaletteResource> {
-    return apiFetch<PaletteResource>('/api/v1/theme/generate', {
+    const bundle = await apiFetch<ThemeBundleResource>('/api/v1/theme/generate', {
       method: 'POST',
       body: JSON.stringify(req),
       idempotent: true,
     });
+    return themeBundleToPaletteResource(bundle);
   },
   async exportCode(req: CodeExportRequest): Promise<CodeExportResponse> {
     return apiFetch<CodeExportResponse>('/api/v1/export/code', {

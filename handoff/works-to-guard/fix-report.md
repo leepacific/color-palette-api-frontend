@@ -148,3 +148,201 @@ Fix loop counter: Loop 1 → Loop 2. fixLoopCount=2/7. Well below cap.
 ## Open questions for Guard
 
 None. All three fix requests are addressed in scope. If Guard considers axe-core wiring insufficient (Sprint-2-deferred in this fix loop), a minimal 10-line `tests/a11y.spec.ts` can be added in Loop 3 without any source-file changes.
+
+---
+
+# Loop 3 — FR-4 resolution (2026-04-09)
+
+**Scope**: strictly limited to FR-4 from Guard Loop 2 `fix-requests.md`. FR-1/FR-2/FR-3 remain RESOLVED and are not touched.
+
+## FR-4 — /theme/generate themeBundle type mismatch — FIXED
+
+### Path decision — Path B (adapter), NOT Path A (endpoint swap)
+
+Guard's recommendation was Path A (switch Flow A from `/theme/generate` to `/palette/random?seed=`). **I evaluated Path A via live curl and rejected it.** Evidence:
+
+```bash
+# Two back-to-back calls to /palette/random with the SAME seed:
+$ curl "https://color-palette-api-production-a68b.up.railway.app/api/v1/palette/random?seed=94TMTHJ5QEQMW" -H "X-API-Key: $KEY"
+{"colors":[{"hex":"#9F0000",...},{"hex":"#856A23",...}, ...]}
+
+$ curl "https://color-palette-api-production-a68b.up.railway.app/api/v1/palette/random?seed=94TMTHJ5QEQMW" -H "X-API-Key: $KEY"
+{"colors":[{"hex":"#008700",...},{"hex":"#6CB3DC",...}, ...]}
+```
+
+Different colors for the same seed. **`/palette/random?seed=` is NOT deterministic on the live backend** — the seed query param is accepted but does not produce byte-identical output. Using Path A would silently break Flow D byte-identical round-trip, regressing Loop 2's FR-1 fix.
+
+In contrast, `/theme/generate` IS deterministic when `{primary, seed}` are fixed (curl-verified — same hex values across calls, only `id`/`createdAt` differ). So Path B (keep `/theme/generate`, adapt the response) is the only path that preserves Flow D.
+
+### Live-verified response shapes (2026-04-09, Railway v1.5.0)
+
+```
+POST /api/v1/theme/generate  →  themeBundle
+  top-level keys: object, id, createdAt, mode, primaryInput, primitive,
+                  semantic, quality, wcag, warnings, framework, generatedAt,
+                  extendedSemantic, seed, slotSource
+  primitive keys: primary, secondary, accent, neutral, success, warning, error
+  ramp steps:     50,100,200,300,400,500,600,700,800,900,950
+  seed:           echoed from request (deterministic)
+
+POST /api/v1/palette/random  →  405 / no body (only GET supported)
+GET  /api/v1/palette/random             →  PaletteResource (colors[])
+GET  /api/v1/palette/random?seed=...    →  PaletteResource but NON-deterministic (rejected for Path A)
+```
+
+### Implementation (Path B — adapter at API client boundary)
+
+**New files (2)**:
+
+1. `src/lib/theme-bundle.ts` (64 lines)
+   - `themeBundleToPaletteResource(bundle: ThemeBundleResource): PaletteResource`
+   - Picks 5 representative swatches:
+     - `[0]` = `bundle.primaryInput`  (user's input; preserves export contract)
+     - `[1]` = `primitive.secondary.500`
+     - `[2]` = `primitive.accent.500`
+     - `[3]` = `primitive.neutral.500`
+     - `[4]` = `primitive.primary.700`  (darker emphasis)
+   - Defensive fallback to `primaryInput` if any ramp step is missing.
+   - `deriveMetrics(bundle)`: maps `bundle.quality.minScore` to the legacy `PaletteMetrics` chip shape so the metric panel still renders; `accessibility=95` when `wcag.enforced=true`.
+
+2. `tests/theme-bundle-adapter.spec.ts` (156 lines, Node-level tests — no browser needed)
+   - **4 tests, all PASS against LIVE Railway v1.5.0 backend**.
+   - Proves backend conformance, adapter correctness, Flow D byte-identity, and synthetic-bundle robustness.
+
+**Modified files (4)**:
+
+1. `src/types/api.ts`
+   - Added `ThemeRamp` and `ThemeBundleResource` types (51 lines appended).
+   - `PaletteResource` untouched — the 11 consumer sites keep their types.
+
+2. `src/lib/api-client.ts`
+   - `api.generateTheme()` now fetches `ThemeBundleResource`, runs it through `themeBundleToPaletteResource`, returns `PaletteResource`. Adapter is at the boundary so no consumer code changes.
+
+3. `src/mocks/stub-data.ts`
+   - Added `stubThemeBundle()` that returns a real `ThemeBundleResource` shape matching live. This **fixes the MSW ↔ live divergence** that caused the Loop 1 Guard miss (previous stub returned hand-crafted `PaletteResource`, masking the live shape).
+
+4. `src/mocks/handlers.ts`
+   - `/api/v1/theme/generate` handler now returns `stubThemeBundle({ primary, seed, mode })` instead of `stubPalette({ seed })`. MSW-on tests exercise the same adapter path as production.
+
+**Consumer sites — zero changes.** All 11 crash sites from Guard's grep (`actions.ts:73,88,130`, `ComponentPreview.tsx:29-33`, `PaletteDisplay.tsx:95`, `JsonSidebar.tsx:77`, `ContrastMatrix.tsx:76`, `ExplainPanel.tsx:37`, `use-keyboard-shortcuts.ts:96`) receive a normalized `PaletteResource` from the adapter — no touching.
+
+### Verification evidence
+
+**E1 — Build** (clean 0 errors, 0 warnings)
+```
+$ npm run build
+dist/assets/index-BWTbsmnl.css    43.26 kB │ gzip: 19.50 kB
+dist/assets/index-Ce6RxM63.js    210.20 kB │ gzip: 65.96 kB  (+0.61 kB vs Loop 2)
+dist/assets/browser-DbK-bcFO.js  254.59 kB │ gzip: 90.18 kB
+✓ built in 2.71s
+```
+Bundle grew +0.61 kB gzipped (adapter + type). Still well under 200 kB Tier 2 target.
+
+**E2 — Adapter unit tests against LIVE backend** (`tests/theme-bundle-adapter.spec.ts`) — **4/4 PASS**
+```
+ok 1 › live /theme/generate returns themeBundle shape (backend conformance) (346ms)
+ok 2 › adapter flattens live themeBundle to PaletteResource with 5 valid colors (192ms)
+ok 3 › adapter is deterministic for fixed {primary, seed} (Flow D round-trip) (113ms)
+ok 4 › adapter handles stub themeBundle without crashing (9ms)
+4 passed (4.4s)
+```
+
+Test #2 asserts:
+- `palette.colors` has exactly 5 entries.
+- Every entry has valid `.hex` (`^#[0-9A-F]{6}$`), `.rgb`, `.hsl`, `.oklch`.
+- `palette.seed` round-trips (equals the request seed).
+- `palette.colors[0].hex === '#7AE4C3'` (preserves user-input primary).
+- Consumer access simulation (`palette.colors[0..4]?.hex`, `.map(c => c.hex)`) does NOT throw.
+
+Test #3 asserts byte-identical colors across two parallel calls with fixed `{primary:'#0F172A', seed:'94TMTHJ5QEQMW'}` — the Flow D guarantee.
+
+**E3 — Flow D regression** (`tests/flow-d.spec.ts`) — **5/5 PASS** (MSW-on).
+```
+ok 1 › ?seed=XXX on mount populates store before first regenerate (594ms)
+ok 2 › pressing r updates URL with a new valid 13-char Base32 seed (792ms)
+ok 3 › ?mode=light on mount applies light mode (417ms)
+ok 4 › invalid seed in URL falls back gracefully (419ms)
+ok 5 › mode default (dark) is omitted from URL (792ms)
+5 passed (6.4s)
+```
+Loop 2 FR-1 fix is untouched and still green.
+
+**E4 — Doctrine greps** (clean)
+```
+$ grep -riE "seamless|empower|revolutioniz|unleash|elevate your" src/
+(no results)  PASS
+```
+
+**E5 — MSW-on Playwright webServer smoke (tests/flow-a-live.spec.ts)** — partial evidence, see §Loop 3 Discoveries below.
+
+### Loop 3 Discoveries (separate backend CORS gap — NOT in FR-4 scope)
+
+During MSW-off browser smoke testing (`tests/flow-a-live.spec.ts` with `VITE_USE_MSW=false`), the browser received CORS preflight rejections:
+
+```
+Access to fetch at 'https://color-palette-api-production-a68b.up.railway.app/api/v1/theme/generate'
+from origin 'http://localhost:5173' has been blocked by CORS policy:
+Request header field idempotency-key is not allowed by Access-Control-Allow-Headers in preflight response.
+```
+
+Curl-verified preflight response headers (`OPTIONS /api/v1/theme/generate`, `Origin: http://localhost:5173`):
+```
+access-control-allow-origin: http://localhost:5173
+access-control-allow-headers: content-type,x-api-key,authorization
+```
+
+The backend CORS allow-list does NOT include `Idempotency-Key` (or `Request-Id`). The frontend sends `Idempotency-Key` on POST `/theme/generate` and `/export/code` per the documented idempotency contract. In browser context, this causes preflight failure before the actual POST goes out.
+
+**Classification**: This is a **pre-existing backend CORS misconfiguration**, unrelated to FR-4. It would affect ANY browser-based frontend calling idempotent endpoints, regardless of the TypeScript response type. Curl-based tests (which the Guard used for Loop 1 contract verification) do not trigger CORS, so this was never surfaced.
+
+**Why this is NOT blocking Loop 3 FR-4 resolution**:
+- The FR-4 defect was: "frontend mistypes the response → runtime crash on `.colors[].hex`"
+- The FR-4 fix (adapter) is complete and proven correct via direct-fetch tests that bypass CORS.
+- The CORS gap is a separate, pre-existing environmental issue.
+
+**Evidence that the adapter is correct despite CORS**: The `theme-bundle-adapter.spec.ts` tests call the live backend directly from Node's `fetch` (no browser preflight), verify the real live response shape, run it through the adapter, and assert no consumer-side crash. 4/4 PASS.
+
+**Recommendation for Guard**: Option to file separate Callback Protocol B against the backend for:
+1. Add `idempotency-key, request-id` to the CORS `Access-Control-Allow-Headers` allow-list.
+2. (Optional) Make `/palette/random?seed=` actually deterministic (Loop 3 discovered it is not — see Path A rejection above).
+
+Neither is in scope for Loop 3 FR-4. I recommend deferring both to Sprint 2 backend hardening OR filing an immediate hotfix after Guard's Loop 3 pass on the frontend.
+
+**Frontend-side mitigation option** (not applied in Loop 3 — out of scope, but available): remove the `Idempotency-Key` header send in the browser client. This weakens the idempotency contract but unblocks browser → live without backend changes. Parked for Sprint 2 decision.
+
+### Files touched in Loop 3
+
+**Created**:
+- `src/lib/theme-bundle.ts`
+- `tests/theme-bundle-adapter.spec.ts`
+- `tests/flow-a-live.spec.ts`  (browser-level smoke; blocked by CORS, documented above)
+- `playwright.live.config.ts`
+- `scripts/dev-live.mjs`
+
+**Modified**:
+- `src/types/api.ts`  (+52 lines: ThemeRamp + ThemeBundleResource)
+- `src/lib/api-client.ts`  (+6 lines: adapter wiring)
+- `src/mocks/stub-data.ts`  (+67 lines: stubThemeBundle + helpers)
+- `src/mocks/handlers.ts`  (+8 lines: switch /theme/generate handler)
+- `handoff/works-to-guard/fix-report.md`  (this section)
+- `handoff/works-to-guard/changelog.md`
+- `handoff/works-to-guard/self-test-report.md` (§13 appended)
+- `handoff/works-to-guard/status.json` (version 0.1.2, loop 3)
+
+**NOT modified** (preserves Loop 1 + Loop 2 PASS criteria):
+- `src/hooks/use-url-sync.ts` (FR-1 Loop 2 fix — untouched)
+- `src/components/*.tsx` (all 11 crash sites — untouched)
+- `src/lib/actions.ts` (the 3 crash sites line 73, 88, 130 — untouched, adapter shields them)
+- `src/hooks/use-keyboard-shortcuts.ts` (21 shortcuts — untouched)
+- `playwright.config.ts` (MSW-on canonical config — untouched)
+- `tests/flow-d.spec.ts` (FR-1 regression guard — untouched, still 5/5 PASS)
+
+### Fix loop counter
+
+Loop 2 → Loop 3. fixLoopCount=3/7. Well below escalation cap.
+
+### Open questions for Guard
+
+1. **CORS gap** (documented above): file as separate Callback B against backend, or accept as known Sprint 2 hardening item? My recommendation: file the callback immediately after Loop 3 frontend PASS — the fix is a 1-line CORS header addition on the Rust backend, <5 min of backend work.
+2. **`/palette/random?seed=` non-determinism** (discovered during Path A evaluation): may or may not be an actual defect — the docs say it accepts a seed param but do not promise determinism. If determinism was intended, file a second backend callback. If it is advisory-only, update `docs/frontend-handoff.md` to say so.
+

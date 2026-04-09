@@ -37,6 +37,52 @@ export interface PaletteResource {
   seed?: string;
 }
 
+// --- Loop 3 FR-4: /theme/generate actually returns themeBundle, NOT PaletteResource.
+// Live-verified shape (Railway v1.5.0, 2026-04-09). The 11 consumer sites in src/
+// still expect PaletteResource, so api.generateTheme() adapts themeBundle →
+// PaletteResource at the API client boundary via themeBundleToPaletteResource().
+// See src/lib/theme-bundle.ts for the adapter.
+
+export type ThemeRamp = Record<
+  '50' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900' | '950',
+  Color
+>;
+
+export interface ThemeBundleResource {
+  object: 'themeBundle';
+  id: string;
+  createdAt: string;
+  mode: 'light' | 'dark' | 'both';
+  seed?: string;
+  primaryInput: Color;
+  primitive: {
+    primary: ThemeRamp;
+    secondary: ThemeRamp;
+    accent: ThemeRamp;
+    neutral: ThemeRamp;
+    success?: ThemeRamp;
+    warning?: ThemeRamp;
+    error?: ThemeRamp;
+  };
+  semantic?: unknown;
+  extendedSemantic?: unknown;
+  slotSource?: unknown;
+  quality?: {
+    minScore: number;
+    perMetric: Record<string, number>;
+  };
+  wcag?: {
+    enforced: boolean;
+    target: string;
+    pairsChecked: number;
+    pairsAdjusted: number;
+    adjustedPairs: string[];
+  };
+  warnings?: string[];
+  framework?: string;
+  generatedAt?: string;
+}
+
 export type CodeExportFormat =
   | 'tailwind-config'
   | 'css-vars-hex'

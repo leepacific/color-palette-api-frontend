@@ -1,17 +1,17 @@
 {
   "state": "ready",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "Frontend Works CTO",
-  "timestamp": "2026-04-09T04:03:20Z",
+  "timestamp": "2026-04-09T04:35:00Z",
   "build_status": "pass",
   "self_test_status": "pass",
   "page_count": 3,
   "component_count": 22,
   "sprint": 1,
-  "loop": 2,
-  "fix_loop_count": 2,
+  "loop": 3,
+  "fix_loop_count": 3,
   "mode": "A",
-  "data_source": "msw",
-  "playwright_tests": "5/5 pass",
-  "notes": "Sprint 1 Loop 2 fix. FR-1 (Flow D URL seed round-trip) implemented via src/hooks/use-url-sync.ts + actions.ts client-side seed minting + App.tsx wiring. FR-3 (Playwright + axe-core) installed; tests/flow-d.spec.ts covers all FR-1 acceptance criteria (5/5 PASS). FR-2 (changelog disclosure) updated in works-to-guard/changelog.md with retroactive Loop 1 deferral disclosure + 0.1.1 Loop 2 section. All Loop 1 PASS criteria preserved: doctrine greps clean, 21 keyboard shortcuts unchanged, 4-state coverage unchanged, build pass 0 errors 0 warnings, bundle 209.59 kB raw / 65.71 kB gzipped (+0.62 kB vs Loop 1, still under 200 kB Tier 2 budget). See self-test-report.md §12 for full Loop 2 verification evidence."
+  "data_source": "msw+live-adapter",
+  "playwright_tests": "flow-d 5/5 pass, theme-bundle-adapter 4/4 pass (live backend)",
+  "notes": "Sprint 1 Loop 3 fix. FR-4 (/theme/generate themeBundle type mismatch, runtime crash on live) resolved via Path B: new src/lib/theme-bundle.ts adapter + ThemeBundleResource type in src/types/api.ts + api-client.ts boundary wiring + MSW stub parity fix (stub-data.ts + handlers.ts). Path A (switch to /palette/random?seed=) was rejected after live curl showed /palette/random?seed= is non-deterministic (would break Flow D byte-identity — Loop 2 FR-1 fix). All 11 consumer sites untouched (adapter shields them). FR-1/FR-2/FR-3 remain RESOLVED. Build 0 errors 0 warnings, 65.96 kB gzipped (+0.61 kB vs 0.1.1). Adapter unit + live-integration suite: 4/4 PASS against LIVE Railway v1.5.0 (bypasses browser CORS via Node fetch). Flow D regression: 5/5 PASS. Loop 3 discovery (NOT in FR-4 scope, NOT touched): backend CORS allow-headers missing idempotency-key + request-id, blocks browser→live MSW-off smoke. Recommend separate Callback B to backend post-Loop-3. See fix-report.md §Loop 3 and self-test-report.md §13 for full evidence."
 }

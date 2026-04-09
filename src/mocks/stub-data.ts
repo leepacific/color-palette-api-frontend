@@ -2,10 +2,13 @@
 // Used when VITE_USE_MSW=true (default during Sprint 1 build).
 
 import type {
+  Color,
   CodeExportResponse,
   ContrastMatrixResource,
   PaletteExplanationResource,
   PaletteResource,
+  ThemeBundleResource,
+  ThemeRamp,
 } from '@/types/api';
 import { hexToHsl, hexToOklch, hexToRgb, contrastRatio } from '@/lib/color-math';
 
@@ -70,6 +73,76 @@ export function stubPalette(opts: {
     },
     harmonyType: opts.locked?.length ? 'constrained' : 'analogous',
     iterations: opts.seed ? 1 : 4,
+  };
+}
+
+// Loop 3 FR-4: MSW stub for /theme/generate must mirror the LIVE themeBundle
+// shape so tests exercise the same code path as production. Before Loop 3 this
+// handler returned a hand-crafted PaletteResource, which masked the type
+// mismatch — Guard Loop 1 missed it because MSW was on during verification.
+function makeColor(hex: string, name: string): Color {
+  return {
+    hex,
+    rgb: hexToRgb(hex),
+    hsl: hexToHsl(hex),
+    oklch: hexToOklch(hex),
+    name,
+  };
+}
+
+function stubRamp(baseHex: string, label: string): ThemeRamp {
+  // Not a real perceptual ramp — just 11 distinct-enough hexes so the adapter
+  // and consumers have valid Color objects to work with in MSW mode. Live
+  // backend returns a proper ramp; this is only for tests.
+  const steps: Array<'50'|'100'|'200'|'300'|'400'|'500'|'600'|'700'|'800'|'900'|'950'> =
+    ['50','100','200','300','400','500','600','700','800','900','950'];
+  const ramp = {} as ThemeRamp;
+  steps.forEach((step) => {
+    ramp[step] = makeColor(baseHex, `${label}-${step}`);
+  });
+  return ramp;
+}
+
+export function stubThemeBundle(opts: {
+  primary?: string;
+  seed?: string;
+  mode?: 'light' | 'dark' | 'both';
+} = {}): ThemeBundleResource {
+  const primaryHex = opts.primary ?? '#0F172A';
+  const secondaryHex = '#64748B';
+  const accentHex = '#7AE4C3';
+  const neutralHex = '#94A3B8';
+  return {
+    object: 'themeBundle',
+    id: ulid('tb'),
+    createdAt: nowIso(),
+    mode: opts.mode ?? 'both',
+    seed: opts.seed,
+    primaryInput: makeColor(primaryHex, 'Primary Input'),
+    primitive: {
+      primary: stubRamp(primaryHex, 'primary'),
+      secondary: stubRamp(secondaryHex, 'secondary'),
+      accent: stubRamp(accentHex, 'accent'),
+      neutral: stubRamp(neutralHex, 'neutral'),
+    },
+    quality: {
+      minScore: 82,
+      perMetric: {
+        primary_composite: 84,
+        secondary_composite: 80,
+        accent_composite: 82,
+      },
+    },
+    wcag: {
+      enforced: true,
+      target: 'AA',
+      pairsChecked: 20,
+      pairsAdjusted: 0,
+      adjustedPairs: [],
+    },
+    warnings: [],
+    framework: 'stub',
+    generatedAt: nowIso(),
   };
 }
 

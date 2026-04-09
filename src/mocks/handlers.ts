@@ -7,6 +7,7 @@ import {
   stubContrastMatrix,
   stubExplanation,
   stubPalette,
+  stubThemeBundle,
 } from './stub-data';
 
 const HOSTS = [
@@ -29,15 +30,24 @@ export const handlers = [
   ),
 
   // theme/generate (Sprint 6 extended with semanticTokens + seed)
+  // Loop 3 FR-4: MSW now returns ThemeBundleResource (mirrors live backend shape).
+  // The API client's adapter flattens it to PaletteResource for consumers.
   ...anyHost('/api/v1/theme/generate').map((url) =>
     http.post(url, async ({ request }) => {
       const body = (await request.json()) as {
         primary?: string;
         seed?: string;
+        mode?: 'light' | 'dark' | 'both';
         semanticTokens?: boolean;
       };
       await delay(180);
-      return HttpResponse.json(stubPalette({ seed: body?.seed }));
+      return HttpResponse.json(
+        stubThemeBundle({
+          primary: body?.primary,
+          seed: body?.seed,
+          mode: body?.mode,
+        }),
+      );
     }),
   ),
 
