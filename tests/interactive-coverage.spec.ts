@@ -295,6 +295,106 @@ test.describe('§6b Exhaustive interactive element coverage (LIVE)', () => {
     expect(swatches).toHaveLength(5);
   });
 
+  // ---------- Loop 7 Direct Fix: FB-011 lock preservation regression gate ----------
+  // This is the end-to-end test that would have caught FB-011. The user presses
+  // `l` on color 2, then presses `r` 5 times, and expects color 2 to remain
+  // unchanged throughout. Before the Direct Fix (actions.ts:regeneratePalette),
+  // regenerate overwrote every color unconditionally. The store.locked flag
+  // was set and the L badge rendered, but pressing `r` wiped the locked color.
+  // This test asserts the full chain: click lock button → press r 5x → locked
+  // swatch hex is byte-identical before and after.
+  test('FB-011: lock color 2 preserved through 5 regenerates (Direct Fix Loop 7+)', async ({
+    page,
+  }) => {
+    await waitForInitialPalette(page);
+    await page.locator('body').focus();
+
+    // Warm up — first press to ensure the live backend is responsive and the
+    // palette is fully mounted.
+    await page.keyboard.press('r');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+
+    // Capture swatch 2's hex BEFORE locking.
+    const extractHex = (label: string | null) => {
+      const m = (label || '').match(/hex (#[0-9A-F]{6})/i);
+      return m ? m[1].toUpperCase() : '';
+    };
+
+    const labelsBefore = await page.$$eval(
+      'button[aria-label*="of 5: hex"]',
+      (els) => els.map((el) => el.getAttribute('aria-label') || ''),
+    );
+    expect(labelsBefore).toHaveLength(5);
+    const swatch2HexBefore = extractHex(labelsBefore[1]);
+    expect(
+      swatch2HexBefore,
+      `expected a hex in swatch 2 label before lock, got: ${labelsBefore[1]}`,
+    ).toMatch(/^#[0-9A-F]{6}$/);
+
+    // Click the "lock color 2" button to toggle the lock on index 1.
+    await page.locator('button[aria-label="lock color 2"]').click();
+    await page.waitForTimeout(150);
+
+    // Verify the lock actually took effect (aria-label should now end with
+    // ", locked" per ColorSwatch.tsx line 44).
+    const labelsAfterLock = await page.$$eval(
+      'button[aria-label*="of 5: hex"]',
+      (els) => els.map((el) => el.getAttribute('aria-label') || ''),
+    );
+    expect(
+      labelsAfterLock[1],
+      'swatch 2 aria-label must include ", locked" after clicking lock button',
+    ).toMatch(/, locked/i);
+
+    // Now press r 5 times and assert the locked color stays put.
+    const observedHexes: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      await page.locator('body').focus();
+      await page.keyboard.press('r');
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(300);
+      const labels = await page.$$eval(
+        'button[aria-label*="of 5: hex"]',
+        (els) => els.map((el) => el.getAttribute('aria-label') || ''),
+      );
+      expect(labels).toHaveLength(5);
+      observedHexes.push(extractHex(labels[1]));
+      // The locked flag must still be present on swatch 2 after each regenerate.
+      expect(
+        labels[1],
+        `after regenerate ${i + 1}, swatch 2 lost its ", locked" aria-label marker`,
+      ).toMatch(/, locked/i);
+    }
+
+    // All 5 observations must equal the pre-lock hex — the FB-011 core assertion.
+    observedHexes.forEach((hex, i) => {
+      expect(
+        hex,
+        `FB-011 regression: swatch 2 changed from ${swatch2HexBefore} to ${hex} after regenerate ${
+          i + 1
+        }. Direct Fix in actions.ts:regeneratePalette() is not preserving locked colors.\nAll 5 observations: ${observedHexes.join(' ')}`,
+      ).toBe(swatch2HexBefore);
+    });
+
+    // Also verify at least one unlocked swatch varied — otherwise the whole
+    // regenerate chain could be broken (different bug, but cheap to catch here).
+    // We compare swatch 1 (unlocked) hex before vs after; they should differ at
+    // least once in 5 presses.
+    const swatch1Before = extractHex(labelsBefore[0]);
+    const labelsAfter = await page.$$eval(
+      'button[aria-label*="of 5: hex"]',
+      (els) => els.map((el) => el.getAttribute('aria-label') || ''),
+    );
+    const swatch1After = extractHex(labelsAfter[0]);
+    // Not strictly required to differ on every press due to seed edge cases,
+    // but across 5 regenerates swatch 1 should have varied at least once.
+    expect(
+      swatch1Before !== swatch1After,
+      `regenerate chain may be broken: swatch 1 (unlocked) is byte-identical after 5 r-presses (${swatch1Before}). Expected variation.`,
+    ).toBe(true);
+  });
+
   test('e key opens export drawer and renders code', async ({ page }) => {
     await waitForInitialPalette(page);
     await page.locator('body').focus();

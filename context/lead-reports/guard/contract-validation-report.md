@@ -275,3 +275,45 @@ non-determinism) still deferred to Sprint 2 backend - not blocking.
 
 PASS. Live wire still green. No contract regression. FB-008 backend
 perturbation working as designed.
+
+---
+
+## Loop 7 update (2026-04-09)
+
+**Context**: Works Loop 7 + Direct Fix `d7d8a08`.
+
+### API contract surface
+
+Zero contract changes in Loop 7. Works Loop 7 and Direct Fix both operate strictly on client-side state between the POST `/theme/generate` response and the Zustand store commit. No new endpoints, no new request fields, no new response shape expectations.
+
+### Live backend conformance re-verification (Loop 7)
+
+`tests/flow-a-live.spec.ts` re-run against deployed Railway backend (MSW off):
+- `themeBundle shape contract` — 2/2 PASS. Response still includes `themeBundle` wrapper with `primitive`, `semantic`, `quality`, `wcag`, `warnings`, `framework`, `seed`, `slotSource` top-level fields. ✓
+- `adapter flattens themeBundle to PaletteResource with 5 valid colors` — 2/2 PASS.
+
+`tests/theme-bundle-adapter.spec.ts` (MSW) — 4/4 PASS. Adapter determinism for fixed `{primary, seed}` still holds (same primary + same seed → byte-identical palette). ✓
+
+### Direct Fix interaction with contract
+
+The Direct Fix in `actions.ts` performs a client-side merge AFTER the backend response:
+
+```typescript
+pal.colors = pal.colors.map((c, i) =>
+  lockedFlags[i] && prevColors[i] ? prevColors[i] : c,
+);
+```
+
+Contract implications:
+- The backend still receives a clean `{primary, mode, semanticTokens, seed}` request — no change.
+- The backend still returns its canonical 5-color palette — no change.
+- The merge happens entirely in the client between response and `setPalette`. The backend-returned seed is still authoritative for URL sync (`nextSeed = pal.seed ?? requestSeed`).
+- **Important subtlety**: the contrast matrix and explanation calls now use `pal.colors.map(c => c.hex)` AFTER the merge, so the downstream analysis APIs see the user-visible palette (including locked colors), not the raw backend palette. This is the desired behavior — if a user has locked color 2, the contrast matrix should analyze what the user sees, not what the backend generated.
+
+### Flow D (URL seed round-trip) unaffected
+
+`tests/flow-d.spec.ts` 5/5 PASS. Locked colors do NOT round-trip via URL — they are ephemeral session state, which is the correct scope. A fresh visit to `/?seed=ABCDEFGHJKMNP` always shows the unmerged backend palette because `store.locked` starts at `[false×5]`. No contract drift.
+
+### Verdict
+
+**PASS.** Zero contract changes in Loop 7. Live backend conformance re-verified. Direct Fix is a client-side merge that preserves the backend contract while restoring user-facing lock semantics. All 4 theme-bundle-adapter tests + 2 flow-a-live tests + 5 flow-d tests green.

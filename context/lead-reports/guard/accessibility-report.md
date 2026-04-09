@@ -158,3 +158,32 @@ interactive elements were introduced without labels.
 ### Verdict
 
 PASS. Loop 5 a11y posture intact. No regression from Loop 6 changes.
+
+---
+
+## Loop 7 update (2026-04-09)
+
+**Context**: Works Loop 7 (`1fc96b5`) + Orchestrator Direct Fix (`d7d8a08`).
+
+### Loop 7 a11y-touching changes
+
+- **FB-010 fix** (ContrastMatrix.tsx) — chip backgroundColor + aria-label now cycle with `cbMode`. Prior Loop 6 state: chips always rendered raw `palette[i].hex`, aria-label identical across 9 modes (WCAG 1.1.1 non-text content: screen readers heard the same hex regardless of simulation, making the colorblind toggle meaningless to assistive tech). Loop 7 state: aria-label = `displayHex` (the cb-simulated hex), so screen readers now announce the mode-specific hex that matches the visual chip. This is an a11y improvement, not just a visual fix.
+- **Direct Fix FB-011** (actions.ts) — no a11y surface change. The `, locked` aria-label suffix and L badge render were already in place at Loop 1; Direct Fix only ensures the backing hex is preserved across regenerate so the aria-label announcement stays truthful.
+- **New test `FB-011: lock color 2 preserved through 5 regenerates`** — the test reads `aria-label` directly, implicitly verifying that the label remains a valid `color N of 5: hex #RRGGBB, oklch ..., hsl ..., locked` string across all regenerates. No a11y regression.
+
+### Loop 7 axe re-run
+
+`tests/a11y.spec.ts` re-run: **1/1 PASS, 0 serious, 0 critical.** Axe scope: home route with initial palette + first regenerate settled. No new violations introduced by Loop 7 changes. 60→0 posture from Loop 5 fully held through Loops 6+7.
+
+### Doctrine §6b + a11y intersection
+
+The §6b strict-mode allow-list is directly tied to a11y surface: every element in the allow-list must still be announced correctly by a screen reader even if its DOM-diff signature is below the coarse-hash threshold. Verified:
+
+- `lock color N` buttons: aria-label cycles `lock color N ↔ unlock color N` (ColorSwatch.tsx:84) ✓
+- `colorblind simulation ${mode}`: aria-label is explicit per mode ✓
+- Contrast ratio cells `\d+(\.\d+)?`: aria-label includes "contrast ratio X.XX:1" (verified in prior Loop 6 audit) ✓
+- `(no label)` demo input: flagged. Sprint 2 should add aria-label="demo input" or convert to `<span>` — non-blocking because it's inside a decorative PreviewCanvas and screen readers have the parent region labeled. Backlog item.
+
+### Verdict
+
+**PASS.** Loop 7 delivers an a11y improvement (FB-010 colorblind announcement now mode-aware) with zero axe regressions. Direct Fix FB-011 has no a11y surface impact. Allow-list entries all have valid aria-labels. Sprint 2 backlog: add aria-label to the `(no label)` demo input as hygiene.

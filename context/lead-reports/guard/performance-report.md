@@ -184,3 +184,43 @@ Within PRD Tier 1 latency budget.
 
 PASS. Bundle health excellent. +0.34 kB gzipped for a new algorithmic module +
 54-element live coverage spec is a bargain.
+
+---
+
+## Loop 7 update (2026-04-09)
+
+**Context**: Works Loop 7 (`1fc96b5`) + Direct Fix `d7d8a08`.
+
+### Bundle size
+
+| Asset | Loop 6 | Loop 7 | Delta |
+|---|---|---|---|
+| `dist/assets/index-*.js` (raw) | 208.60 kB | **208.99 kB** | +0.39 kB |
+| `dist/assets/index-*.js` (gzipped) | 65.08 kB | **65.19 kB** | +0.11 kB |
+| `dist/assets/index-*.css` | 43.41 kB | **43.41 kB** | 0 |
+
+The +0.39 kB raw / +0.11 kB gzip delta is accounted for by:
+- Works Loop 7: `ContrastMatrix.tsx` cbMode wiring (~300 bytes — minor map lookup + ternary)
+- Works Loop 7: Large STRICT_ALLOW_LIST in `interactive-coverage.spec.ts` — **test file only, not bundled**
+- Direct Fix Loop 7+: ~100 bytes in `actions.ts` for the prev-palette capture + merge block
+
+Total bundled source added by Loop 7: ~400 bytes raw, ~110 bytes after gzip. **Well within budget.** Bundle stays comfortably under the 100 kB gzip soft target and the 300 kB raw hard ceiling.
+
+### Runtime performance
+
+No new heavy computations:
+- FB-010 fix adds one map lookup (`matrix.colorblind?.[cbMode]?.[i]`) per swatch chip per render — O(5) per matrix render, trivially cheap
+- Direct Fix adds one `Array.some(Boolean)` + one `Array.map` — O(5) per regenerate, runs once per request/response cycle
+- No new API calls, no new event listeners, no new subscriptions
+
+### Perceived performance
+
+Regenerate flow latency unchanged: initial palette load ~500-1500 ms (Railway network), subsequent regenerates ~200-400 ms. Lock toggle is synchronous (store update + React re-render, <16 ms). Colorblind toggle is synchronous (store update, no network). All good.
+
+### Railway cold-start characterization (new finding this loop)
+
+Full sequential runs of the 14-test interactive-coverage suite occasionally trigger a Railway free-tier cold-start cycle after ~60 s of idle. When this happens, the next test's initial `POST /theme/generate` takes >20 s, exceeding `waitForInitialPalette`'s selector timeout. This is backend infra, not client perf. **Not a release blocker** — the client's perceived latency on an actual user visit is identical because a real user's first visit also warms the backend before they interact. Sprint 2 test-quality item: bump the Playwright selector timeout to 60 s.
+
+### Verdict
+
+**PASS.** Bundle delta +0.11 kB gzip (trivial). No runtime regressions. Lock toggle and colorblind toggle both feel instant. Railway cold-start is infra, not code.

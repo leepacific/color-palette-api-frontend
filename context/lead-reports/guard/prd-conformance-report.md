@@ -184,3 +184,38 @@ deterministic reproducibility.
 
 PASS. All PRD Tier 1 features (1-11) verified with executed tests INCLUDING
 end-to-end user-visible outcome gates, not just mechanism gates.
+
+---
+
+## Loop 7 update (2026-04-09)
+
+**Context**: Works Loop 7 (`1fc96b5`) + Direct Fix `d7d8a08`.
+
+### PRD P0 re-verification (Loop 7)
+
+| PRD P0 feature | Loop 6 status | Loop 7 status | Evidence |
+|---|---|---|---|
+| Flow A: generate palette | PASS | **PASS** | flow-a-live 2/2 |
+| Flow B: explain palette | PASS | **PASS** | (unchanged — no Loop 7 touch) |
+| Flow C: contrast matrix | PASS | **PASS** | FB-010 (colorblind chips) now mode-sensitive, verified |
+| Flow D: URL seed round-trip | PASS | **PASS** | flow-d 5/5, byte-identical FB-009 still holds |
+| 21 keyboard shortcuts | PASS | **PASS** | interactive-coverage suite |
+| Lock/unlock (`l`/`u`) preserves color across regenerate | **silently broken** | **FIXED** (Direct Fix FB-011) | new named test "FB-011: lock color 2 preserved through 5 regenerates" |
+| Colorblind simulation (9 modes) visibly changes matrix | **silently broken** | **FIXED** (FB-010 ContrastMatrix cbMode wiring) | new named test "colorblind toggle (9 modes) — each click visibly changes matrix swatch chips" |
+| 4-state component coverage (idle/loading/success/error) | PASS | **PASS** | (unchanged) |
+| Dark/light theme | PASS | **PASS** | `m key toggles dark/light mode` test |
+| WCAG AA compliance | PASS | **PASS** | axe 0 serious/critical |
+
+### New P0 gate: lock preservation
+
+The PRD explicitly lists lock-and-regenerate as a P0 user story ("pin colors you like, regenerate the rest"). Before Loop 7, the lock UI rendered but pressing `r` wiped every color — a silent P0 miss across Loops 1-6 that no Guard layer caught because (a) Works tested "store.locked[i] = true after pressing l", not "regenerating preserves the locked hex", and (b) §6b strict mode's allow-list mis-classified the lock button as "store-only UI gap" instead of tracing the store-write to its downstream effect.
+
+Loop 7 Direct Fix closes this. The new named test enforces it going forward.
+
+### Works Loop 7 PRD targeting
+
+Works Loop 7's scope was explicitly FB-010 + §6b strict. They did not target FB-011 because their strict-mode allow-list framing made them treat lock-no-visual-effect as an expected gap rather than a bug. This is the lesson encoded in the new `strict-mode-allow-list-discipline.md` knowledge file. Direct Fix was the right escape hatch within the last-loop constraint.
+
+### Verdict
+
+**PASS.** All P0 user stories are now live-verified against the deployed Railway backend. Two silent P0 misses (FB-010, FB-011) were caught and closed in Loop 7 — one by Works (cb fix), one by Orchestrator Direct Fix (lock preservation). PRD conformance is at its strongest state of Sprint 1. Ready for release.

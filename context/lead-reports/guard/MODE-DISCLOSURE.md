@@ -37,3 +37,23 @@ If Works resubmits with Flow D fixed, a subsequent Guard pass SHOULD include bro
 - **Responsive**: MEDIUM (CSS media queries read as correct at 1200 / 900 breakpoints; no visual confirmation)
 
 The FAIL verdict is not limited by Mode A. The defect is unambiguous.
+
+---
+
+## Loop 7 addendum (2026-04-09)
+
+**Mode**: A (inline Guard QA Director, real test execution)
+
+- Build: `npm run build` — 208.99 kB / 65.19 kB gzip ✓
+- Vitest: 5/5 real execution ✓
+- Playwright flow-d: 5/5 real execution ✓
+- Playwright theme-bundle-adapter: 4/4 real execution ✓
+- Playwright a11y (axe-core): 1/1, 0 serious/critical real execution ✓
+- Playwright flow-a-live (LIVE Railway): 2/2 real execution ✓
+- Playwright interactive-coverage (LIVE): **14/14 in isolation**, 12-13/14 on full sequential run due to Railway free-tier cold-start flakiness on `waitForInitialPalette` (pre-existing infra, not code, Sprint 2 backlog)
+- New test added by Guard: `FB-011: lock color 2 preserved through 5 regenerates (Direct Fix Loop 7+)` in `tests/interactive-coverage.spec.ts`
+- Source reads for verification: `src/lib/actions.ts`, `src/components/ContrastMatrix.tsx`, `src/components/ColorSwatch.tsx`, `src/components/ComponentPreview.tsx`, `src/state/store.ts`, `tests/interactive-coverage.spec.ts`
+
+**Direct Fix disclosure**: Commit `d7d8a08` was authored by Orchestrator (not Guard, not Works). Guard's role on Loop 7 is to independently verify the fix's correctness + regression integrity + add the dedicated named test. This report documents that verification.
+
+Confidence: HIGH on all checks. LIVE tests were run against deployed Railway backend with measurable timing (2-5 s per test on warm backend).

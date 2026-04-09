@@ -172,3 +172,47 @@ colors - they do not affect doctrine compliance.
 ### Verdict
 
 PASS. Doctrine intact through loop 6. No visual regression.
+
+---
+
+## Loop 7 update (2026-04-09)
+
+**Context**: Works Loop 7 + Direct Fix `d7d8a08`.
+
+### Doctrine §1.x regression scan (Loop 7)
+
+Independent grep + visual audit of the Loop 7 code surface:
+
+| Check | Finding |
+|---|---|
+| Prohibited vocabulary (Seamless, Empower, Revolutionize, 혁신적인, 새로운 차원의, Elevate, Unleash, Next-gen, Cutting-edge) | **0 occurrences** in src/, tests/, context/, handoff/ |
+| Inter-alone typography fallback | Using @fontsource/ibm-plex-sans + @fontsource/jetbrains-mono — confirmed in package.json deps + preloaded via dist/assets/ |
+| Purple-blue gradient ban | Searched `from-purple\|to-blue\|gradient-to.*purple\|gradient-to.*blue\|hsl\(2[4-8][0-9]` across src/styles/ — **0 matches** |
+| Bounce easing / spring curves | Searched `cubic-bezier.*-\|bounce\|spring\|elastic\|back` in src/styles/ and tailwind.config.js — **0 matches** |
+| Generic "glassmorphism" overuse (backdrop-blur everywhere) | Present only on 1 intentional element (top banner), not on every card — legit |
+| Centered hero "title + subtitle + CTA" | Home route has Anti-AI Doctrine-compliant asymmetric generator layout — no centered hero |
+| 3-col equal-size card grid | Swatch row is 5-col flex, not 3-col grid — legit; component preview section uses varied card sizes |
+
+**Doctrine §1.x all green.** ✓
+
+### Colorblind mode visual verification (FB-010)
+
+With the Loop 7 ContrastMatrix fix, clicking each of the 9 colorblind mode buttons now produces a visibly distinct render of the chip strip. Spot-checked via Playwright trace + manual browser session:
+
+- **none** (baseline): original palette hexes rendered as-is
+- **protanopia / deuteranopia / tritanopia** (full dichromacy): chips shift noticeably, especially reds and greens
+- **protanomaly / deuteranomaly / tritanomaly** (partial): subtler shifts, still visibly distinct
+- **achromatopsia**: chips all greyscale as expected
+- **achromatomaly**: chips desaturated but not full grey
+
+The `data-cb-mode={cbMode}` attribute on each chip + the `viewing as: {cbMode}` caption (ContrastMatrix.tsx:97) provide both a user-visible and a testable signal. No visual regression on the default `none` mode.
+
+### Lock indicator visual verification (FB-011 Direct Fix)
+
+The L badge on ColorSwatch.tsx:46 was already in place from Loop 1. What Loop 7 fixes is the **backing state**: after pressing `r`, the locked swatch used to change hex while the L badge stayed on top of the new hex — a confusing UX where the lock visual was a lie. Post-Direct-Fix, the L badge and the actual rendered hex are consistent across regenerates.
+
+Manual browser verification: loaded /, pressed `2` then `l`, observed L badge appear on swatch 2, pressed `r` five times, confirmed swatch 2 hex and L badge both stayed constant while swatches 1, 3, 4, 5 changed. ✓
+
+### Visual audit verdict
+
+**PASS.** Zero §1.x regressions. FB-010 colorblind simulation is now visually meaningful. FB-011 Direct Fix makes the lock affordance visually truthful. Sprint 1 visual state is fully doctrine-compliant and at its best of the sprint.

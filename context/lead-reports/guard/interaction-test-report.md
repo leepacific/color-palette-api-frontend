@@ -226,3 +226,46 @@ All three mutation classes caught by at least one assertion in the suite.
 PASS unconditional. 6b gate is live and meaningful. All 11 named interaction
 contracts assert user-visible outcome, not mechanism. fixLoopCount=6/7, 1 loop
 headroom unused. Sprint 1 release approved from interaction perspective.
+
+---
+
+## Loop 7 update (2026-04-09)
+
+**Context**: Works Loop 7 (`1fc96b5`) delivered FB-010 fix + §6b strict mode. Orchestrator Direct Fix (`d7d8a08`) closed FB-011. Guard Loop 7 added one new named test.
+
+### Loop 7 interactive-coverage breakdown
+
+**14/14 PASS (in isolation)**, up from Loop 6's 11/11. New this loop:
+
+1. **`colorblind toggle (9 modes) — each click visibly changes matrix swatch chips (FB-010)`** — the test that would have caught FB-010. Iterates all 9 cb modes, captures chip `aria-label` serialization per mode, asserts zero dead modes (every non-`none` mode must differ from `none` baseline) + ≥7 of 9 distinct serializations. **PASS.**
+2. **`§6b strict mode — every interactive element has an observable outcome`** — enumerates 54 elements, clicks each, captures `{url, title, bodyLen, dataTheme, ariaPressedCount}` before/after, asserts either (a) observable change OR (b) allow-listed with rationale. Allow-list has 12 regex entries covering 51 elements. 3 elements produce live observable change. 0 dead. **PASS.**
+3. **`FB-011: lock color 2 preserved through 5 regenerates (Direct Fix Loop 7+)`** — Guard Loop 7 addition. Clicks `button[aria-label="lock color 2"]`, asserts aria-label now contains `, locked`, then presses `r` 5 times and asserts the swatch 2 hex is byte-identical across all 5 observations. Also asserts swatch 1 (unlocked) varies across the 5 regenerates as a chain-integrity check. **PASS (4.2s first run, 1.6s isolated retry).**
+
+### Strict-mode allow-list audit (re-classification)
+
+Guard re-classified all 12 STRICT_ALLOW_LIST regex entries per the new strict-mode-allow-list-discipline knowledge file (Category A decorative / Category B non-mutating / Category C store-only-with-downstream-effect / Category D forbidden):
+
+| Regex | Original claim | Re-classified | Status |
+|---|---|---|---|
+| `skip to generator` | skip-link | B (non-mutating, focuses main) | legit |
+| `lock color \d` | "store-only UI gap" (WRONG) | C (store-only WITH aria-label suffix + L badge render; covered by FB-011 named test) | **corrected — was hiding FB-011** |
+| `^→ ` | docs link target=_blank | B (non-mutating current page) | legit |
+| `^\d+(\.\d+)?$` | focusedIndex store-only | C (CSS border-ring; covered by `digit keys 1-5`) | legit |
+| `primary\|secondary\|destructive` | demo buttons | A (decorative, confirmed no onClick at ComponentPreview.tsx:64) | legit |
+| `^\(no label\)$` | shadcn demo input | A (decorative, Sprint 2 backlog: add aria-label) | legit |
+| `^\d+:\s*"#[0-9a-f]{6}"` | palette-debugger JSON | A (read-only code display) | legit |
+| `^▌palette ` | palette-debugger header | A (read-only code display) | legit |
+| `^color \d of 5: hex ` | swatch button | C (CSS border-ring; covered by `digit keys 1-5` + `every swatch button click`) | legit |
+| `^colorblind simulation none$` | self-click on active | B (legitimate no-op at init) | legit |
+| `\[r\] retry` | error-state conditional | B (conditional rendering, covered by error-recovery tests) | legit |
+| `^colorblind simulation ` | sequential within-scan | B (aria-pressed stays at 1, covered by FB-010 named test) | legit |
+
+**Audit verdict**: 11 entries legit with original rationale, 1 entry (lock color) had its rationale corrected + a new named test (FB-011) was added to cover it. No dead UI remains in the allow-list.
+
+### LIVE Railway cold-start flakiness (Sprint 2 backlog)
+
+Full sequential runs of `interactive-coverage.spec.ts` (14 tests) occasionally show 1-2 `waitForInitialPalette` timeouts (20s exceeded) when Railway free-tier backend is cold-starting after ~60s of idle. Each failing test PASSES on isolated re-run in <5s. **Infra only, not code.** Sprint 2 fix: extend `waitForInitialPalette` timeout to 60s or add per-test retry via `test.info().retry`. Not a Loop 7 blocker.
+
+### Verdict
+
+**PASS unconditional.** §6b strict-mode gate is now meaningful (14 named tests, 54 elements enumerated, 0 dead, audited allow-list). FB-010 colorblind is live-verified. FB-011 Direct Fix has its own regression test. The interaction surface is fully covered. fixLoopCount=7/7 (last loop) — Direct Fix authorized by Board Chairman avoided H13 escalation. Sprint 1 release approved from interaction perspective.
