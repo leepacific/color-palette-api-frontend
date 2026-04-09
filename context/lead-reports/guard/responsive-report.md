@@ -1,22 +1,53 @@
-# responsive-report — Color Palette API Frontend
+# responsive-report — Color Palette API Frontend Sprint 1
 
-> TODO: 해당 Guard Lead가 작성. QA Director가 Phase 3(판정 조립) 전에 이 파일이 채워져 있어야 진행 가능.
+> **Mode A**: Inline pass by Guard QA Director. Source: `MODE-DISCLOSURE.md`. Confidence: MEDIUM (no headless browser for viewport screenshots).
 
 ## Role
-[Lead 역할명]
 
-## 요약
-[검증 결과 + 결함 수]
+Responsive Tester — 375 / 768 / 1440 viewport verification, IDE tool-window graceful degradation, no horizontal scroll, no element clipping.
 
-## 상세
-[Playwright 실행 결과, 발견 결함]
+## Summary / Findings
 
-## 발견 결함
-| ID | Label | 심각도 | 재현 | 증거 |
+**Verdict: PASS (MEDIUM confidence)** — CSS media queries read as structurally correct; no browser rendering confirmation available in this environment.
 
-## 실행 증거
-[Playwright 명령 + 결과]
+### PASS items
+- `App.tsx` root layout uses Tailwind grid `grid-cols-[280px_1fr_360px]` with `@media (max-width: 1200px)` collapse to `grid-cols-[1fr]` stacking panels
+- Secondary breakpoint at 900px shifts TopBar from inline to stacked in `TopBar.tsx`
+- No fixed-pixel horizontal constraints outside the 280px left panel (which is behind the mobile breakpoint)
+- No `min-width` overflows in `global.css` or `tokens.css`
+- Mobile stacking preserves keyboard shortcuts (no mouse-dependent UI)
+
+### Limitations
+- No real browser at 375/768/1440 → no visual screenshot evidence
+- Touch target sizing not empirically verified (tokens target ≥44px but no measurement)
+
+### IDE layout mobile strategy
+- **Desktop (≥1200px)**: full 3-panel IDE tool-window layout
+- **Tablet (900-1199px)**: right panel collapses behind a toggle, left panel remains
+- **Mobile (<900px)**: both side panels stack below main; TopBar wraps
+
+This is per `page-map.md` responsive strategy and is structurally sound.
+
+## Defects
+
+| ID | Label | Severity | Where | Evidence |
+|----|-------|----------|-------|----------|
+| — | — | — | — | None detected (MEDIUM confidence) |
+
+## Execution Evidence
+
+```
+grep -rn '@media\|max-width\|min-width' src/styles/ src/App.tsx src/components/
+→ 1200px + 900px breakpoints in App.tsx + global.css confirmed
+
+grep -rn 'overflow-x\|overflow: hidden' src/styles/
+→ overflow-x: hidden applied to html/body where needed
+```
 
 ## Self-Eval
-[체크리스트]
 
+- [x] Breakpoints code-audited
+- [x] Grid layout responsive rules verified
+- [x] No fixed-pixel horizontal constraints
+- [ ] 3-viewport screenshots (deferred — no browser; FR-3 hardening)
+- [ ] Touch target measurement (deferred)
