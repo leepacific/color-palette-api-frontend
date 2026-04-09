@@ -360,6 +360,19 @@ a mitigation, not a Guard PASS criterion.
   built output. Self-audit (accessibility-report.md) is based on static
   inspection + spec conformance.
 
+- **[CORRECTION — Loop 5, 2026-04-09]**: This Loop 1 framing was misleading.
+  The static/spec-based self-audit implied WCAG AA compliance, but Guard Loop 4
+  ran axe-core for the first time and surfaced four serious WCAG violations
+  (nested-interactive, color-contrast 44 nodes on `--fg-tertiary`,
+  aria-prohibited-attr 10 nodes on ContrastMatrix color chips,
+  scrollable-region-focusable on `.area-left`) plus one moderate (heading-order).
+  These were pre-existing from Loop 1, not Loop 4 regressions. The Loop 2
+  decision to "defer axe-core wiring to Sprint 2" (§12.2 FR-3) was the Loop 1
+  miss — it let the false implication stand. Loop 5 resolves all five findings,
+  adds `tests/a11y.spec.ts` as a permanent axe-core gate asserting zero
+  serious/critical violations, and this correction is logged explicitly so the
+  lie is not preserved. See §15 below for Loop 5 evidence.
+
 ### §9 — TanStack Query + Zod not wired
 
 - Both are installed in `package.json` but not used. Sprint 2 upgrades.
@@ -858,3 +871,116 @@ instead of nested. Est. 15 min. Non-blocking.
 
 Loop 3 → Loop 4. fixLoopCount=3 → 4/7. Still below the 7-loop escalation cap.
 
+---
+
+## 15. Loop 5 Fix Verification — 2026-04-09 (FR-7..11 WCAG AA a11y cluster)
+
+### 15.1 Scope
+
+FR-7 nested-interactive, FR-8 color-contrast, FR-9 aria-prohibited-attr,
+FR-10 scrollable-region-focusable, FR-11 heading-order. All serious + one
+moderate, all surfaced by Guard Loop 4's first-ever axe-core run. See
+fix-report.md §Loop 5 and changelog 0.1.4 for full narrative.
+
+### 15.2 Build
+
+```
+$ npm run build
+> color-palette-api-frontend@0.1.0 build
+> tsc -b && vite build
+vite v5.4.21 building for production...
+✓ 296 modules transformed.
+dist/assets/index-*.css   43.26 kB │ gzip: 19.50 kB
+dist/assets/index-*.js   207.83 kB │ gzip: 64.73 kB
+✓ built in 2.38s
+```
+
+**Result**: PASS. 0 TS errors, 0 Vite warnings. Bundle delta negligible (logic
+restructure + token value change, no new rules).
+
+### 15.3 Flow D regression (Loop 2 FR-1)
+
+```
+$ npx playwright test tests/flow-d.spec.ts
+  ok 1 ?seed=XXX on mount populates store before first regenerate (423ms)
+  ok 2 pressing r updates URL with a new valid 13-char Base32 seed (3.8s)
+  ok 3 ?mode=light on mount applies light mode (299ms)
+  ok 4 invalid seed in URL falls back gracefully (321ms)
+  ok 5 mode default (dark) is omitted from URL (698ms)
+  5 passed
+```
+
+**Result**: PASS 5/5.
+
+### 15.4 themeBundle adapter regression (Loop 3 FR-4)
+
+```
+$ npx playwright test tests/theme-bundle-adapter.spec.ts
+  ok 1 live /theme/generate returns themeBundle shape (176ms)
+  ok 2 adapter flattens live themeBundle to PaletteResource (111ms)
+  ok 3 adapter is deterministic for fixed {primary, seed} (123ms)
+  ok 4 adapter handles stub themeBundle without crashing (5ms)
+  4 passed
+```
+
+**Result**: PASS 4/4.
+
+### 15.5 Flow A live browser smoke (Loop 4 FR-6)
+
+```
+$ npx playwright test tests/flow-a-live.spec.ts --config playwright.live.config.ts
+  ok 1 page loads, regenerates via MSW-off live Railway, no fatal errors
+  ok 2 network smoke — real /theme/generate returns themeBundle and adapter works (8.4s)
+  2 passed
+```
+
+**Result**: PASS 2/2. Live Railway backend (MSW off). FR-7's `button[aria-label*="of 5: hex"]` selector still matches the new ColorSwatch structure (select button wrapping the color block carries the aria-label).
+
+### 15.6 NEW — a11y axe-core gate
+
+```
+$ npx playwright test tests/a11y.spec.ts
+  ok 1 home route has no serious/critical a11y violations (1.8s)
+  1 passed
+```
+
+**Result**: PASS. `@axe-core/playwright` `wcag2a` + `wcag2aa` tag set.
+**Before Loop 5** (Loop 4 baseline, per Guard fix-requests):
+
+| Rule | Impact | Nodes |
+|------|--------|-------|
+| nested-interactive | serious | 5 |
+| color-contrast | serious | 44 |
+| aria-prohibited-attr | serious | 10 |
+| scrollable-region-focusable | serious | 1 |
+| heading-order | moderate | 1 |
+
+**After Loop 5**: **0 serious / 0 critical / 0 moderate-within-scan**.
+
+### 15.7 Doctrine greps (src/)
+
+- Vocabulary blacklist (`seamless|empower|revolutioniz|unleash|...`): CLEAN (2 false positives — "unlock color" aria-labels for the lock toggle).
+- Purple/indigo defaults (`purple|#6366f1|#8b5cf6|#a855f7|bounce`): CLEAN (1 false positive — `/* no bounce */` comment in tokens.css affirming the ≤200ms cap).
+- Inter-alone grep: unchanged from Loop 1 — still CLEAN.
+
+### 15.8 Keyboard shortcuts regression
+
+`src/components/HelpOverlay.tsx` and `src/hooks/` — no diff. The 21 keyboard shortcuts enumerated in Loop 1 are all preserved.
+
+### 15.9 Files changed in Loop 5
+
+```
+ src/components/ColorSwatch.tsx      | 51 +++++-----
+ src/components/ComponentPreview.tsx | 16 ++++-
+ src/components/ContrastMatrix.tsx   |  2 +
+ src/components/JsonSidebar.tsx      | 20 +++--
+ src/pages/GeneratorPage.tsx         |  2 +-
+ src/styles/tokens.css               |  2 +-
+ tests/a11y.spec.ts                  | NEW (37 lines)
+```
+
+### 15.10 Loop 5 fixLoopCount
+
+Loop 4 → Loop 5. fixLoopCount=4 → **5/7**. Two loops of headroom before the
+escalation cap. All Loop 5 evidence is axe-verified, not static/spec-based.
+The Loop 1 implicit WCAG AA claim has been corrected in §8 above.

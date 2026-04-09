@@ -103,6 +103,7 @@ export function ContrastMatrix() {
                     style={{ minWidth: 48 }}
                   >
                     <div
+                      role="img"
                       className="w-8 h-3 border border-border-base inline-block"
                       style={{ backgroundColor: hex }}
                       aria-label={hex}
@@ -116,6 +117,7 @@ export function ContrastMatrix() {
                 <tr key={`r-${fi}`}>
                   <th scope="row" className="p-1 text-left">
                     <div
+                      role="img"
                       className="w-8 h-3 border border-border-base inline-block"
                       style={{ backgroundColor: fgHex }}
                       aria-label={fgHex}

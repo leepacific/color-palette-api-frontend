@@ -1,5 +1,40 @@
 # Changelog — color-palette-api frontend · Sprint 1
 
+## 0.1.4 — 2026-04-09 · Sprint 1 Loop 5 fix (FR-7..11 WCAG AA a11y cluster)
+
+Guard Loop 4 ran axe-core for the first time and surfaced four pre-existing serious WCAG violations (FR-7 nested-interactive, FR-8 color-contrast 44 nodes, FR-9 aria-prohibited-attr 10 nodes, FR-10 scrollable-region-focusable) plus one moderate (FR-11 heading-order). These were Loop 1 misses that Loops 2–3 did not catch because FR-3 Loop 2 accepted "axe-core wiring deferred to Sprint 2". Loop 5 resolves all five, adds `tests/a11y.spec.ts` (axe-core-backed Playwright gate asserting zero serious/critical on the home route), and corrects the Loop 1 self-test "WCAG AA self-compliance" claim, which was factually false.
+
+### Fixes
+
+- **FR-7 (nested-interactive, 5 nodes)**: `ColorSwatch.tsx` rewritten with Approach B (sibling overlay). Outer element is a plain `<div>`; the select `<button>` wraps only the color block at top and carries the full aria-label; the lock `<button>` is a sibling in the metadata area. First-attempt Approach A (`<div role="button" tabIndex={0}>` wrapping everything) failed axe `no-focusable-content` and was discarded. The `button[aria-label*="of 5: hex"]` selector the live browser smoke depends on is preserved.
+- **FR-8 (color-contrast, 44 nodes)**: `tokens.css --fg-tertiary` bumped from `#6b7280` (3.74:1 on `#14161b`) to `#94a3b8` (~6.5:1, Tailwind slate-400). Neutral-cool, no warm/saturated drift, doctrine-preserving. Two follow-up sites also fixed:
+  - `JsonSidebar.tsx` — hex text now uses `--fg-primary` with a small preceding 8×8 color chip (`role="img"` + aria-label). Previously `style={{ color: c.hex }}` failed contrast for dark generated colors on the dark sidebar bg.
+  - `ComponentPreview.tsx` — shadcn-slot demo block marked `inert` + `aria-hidden="true"`. The block paints dynamic user-generated palette colors on hardcoded white backgrounds; contrast is a property of the generated palette, not app chrome. The block is a pure visual preview.
+- **FR-9 (aria-prohibited-attr, 10 nodes)**: `ContrastMatrix.tsx` — `role="img"` added to the two color-chip `<div>`s that carry `aria-label={hex}` in the contrast matrix header row and column.
+- **FR-10 (scrollable-region-focusable, 1 node)**: `GeneratorPage.tsx` — `.area-left` wrapper (actual scrollable region per `global.css`) has `tabIndex={0}`. Keyboard users can now focus it and arrow-scroll the JSON sidebar.
+- **FR-11 (heading-order, 1 node)**: `ComponentPreview.tsx` — two `<h3>` elements (one in empty state, one in default state) promoted to `<h2>` to match the sibling `<h2>contrast · colorblind</h2>` in `ContrastMatrix.tsx` and follow the page `<h1>generator</h1>`.
+
+### Side effects
+
+- `ColorSwatch.tsx` copy `<span>` click handlers no longer need `e.stopPropagation()` because the parent is no longer a button. Click-to-copy is unchanged.
+- `JsonSidebar.tsx` `<aside aria-hidden="true">` replaced with `<aside aria-label="palette JSON preview">` — the previous aria-hidden was wrong (the JSON preview is a meaningful region with interactive buttons) AND triggered a follow-up `aria-hidden-focus` axe violation.
+- Build size delta: js ≈0 (only logic restructure), css ≈0 (token value change, no new rules).
+
+### Verification
+
+- `npm run build` — 0 errors 0 warnings
+- `npx playwright test tests/flow-d.spec.ts tests/theme-bundle-adapter.spec.ts tests/a11y.spec.ts` — **10/10 PASS**
+- `npx playwright test tests/flow-a-live.spec.ts --config playwright.live.config.ts` — **2/2 PASS** against LIVE Railway
+- axe-core scan: 4 serious + 1 moderate → **0 serious / 0 critical / 0 moderate** in scan scope
+- 21 keyboard shortcuts file unchanged
+- Doctrine greps (vocabulary blacklist, purple/indigo, bounce) clean
+
+### Added
+
+- `tests/a11y.spec.ts` — new gate: `@axe-core/playwright` home-route scan asserting zero serious/critical on `wcag2a` + `wcag2aa` tag set. Pins this loop's win for all future loops.
+
+---
+
 ## 0.1.3 — 2026-04-09 · Sprint 1 Loop 4 fix (FR-6)
 
 Guard Loop 3 returned CONDITIONAL PASS pending a post-CORS-fix upgrade run of

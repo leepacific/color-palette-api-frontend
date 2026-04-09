@@ -11,7 +11,7 @@ export function JsonSidebar() {
     return (
       <aside
         className="p-3 font-mono text-xs text-fg-secondary"
-        aria-hidden="true"
+        aria-label="palette JSON preview"
       >
         <div className="flex items-center gap-1">
           <BlinkingCaret />
@@ -23,7 +23,7 @@ export function JsonSidebar() {
 
   if (state === 'error') {
     return (
-      <aside className="p-3 font-mono text-xs text-semantic-error" aria-hidden="true">
+      <aside className="p-3 font-mono text-xs text-semantic-error" aria-label="palette JSON preview">
         <div className="flex items-center gap-1">
           <BlinkingCaret color="var(--semantic-error)" />
           <span>
@@ -40,7 +40,7 @@ export function JsonSidebar() {
 
   if (!palette) {
     return (
-      <aside className="p-3 font-mono text-xs text-fg-tertiary" aria-hidden="true">
+      <aside className="p-3 font-mono text-xs text-fg-tertiary" aria-label="palette JSON preview">
         <div className="flex items-center gap-1">
           <BlinkingCaret />
           <span>palette null</span>
@@ -52,7 +52,7 @@ export function JsonSidebar() {
   return (
     <aside
       className="p-3 font-mono text-xs text-fg-secondary flex flex-col gap-1"
-      aria-hidden="true"
+      aria-label="palette JSON preview"
     >
       <div className="flex items-center gap-1 text-fg-primary">
         <BlinkingCaret />
@@ -82,10 +82,16 @@ export function JsonSidebar() {
           onClick={() => setFocusedIndex(i)}
         >
           <span className="text-fg-tertiary">{i}: </span>
+          {/* Loop 5 FR-8 follow-up: swatch chip is decorative, hex text uses
+              fg-primary so the JSON line passes WCAG AA regardless of the
+              generated palette. */}
           <span
-            className="tracking-[0.02em]"
-            style={{ color: c.hex }}
-          >
+            role="img"
+            aria-label={`color ${i + 1} swatch`}
+            className="inline-block w-2 h-2 align-middle mr-1 border border-border-base"
+            style={{ backgroundColor: c.hex }}
+          />
+          <span className="tracking-[0.02em] text-fg-primary">
             &quot;{c.hex}&quot;
           </span>
           <span className="text-fg-tertiary">,</span>

@@ -32,7 +32,7 @@ export function GeneratorPage() {
       <div className="app-shell-grid">
         <TopBar />
 
-        <div className="area-left">
+        <div className="area-left" tabIndex={0}>
           <JsonSidebar />
         </div>
 

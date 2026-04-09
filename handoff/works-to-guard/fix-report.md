@@ -1,4 +1,71 @@
-# Fix Report — color-palette-api frontend · Sprint 1 · Loops 2–4
+# Fix Report — color-palette-api frontend · Sprint 1 · Loops 2–5
+
+## Loop 5 — WCAG AA a11y cluster FR-7..11 (2026-04-09)
+
+**Author**: Frontend Works CTO
+**Scope**: FR-7 (nested-interactive), FR-8 (color-contrast), FR-9 (aria-prohibited-attr), FR-10 (scrollable-region-focusable), FR-11 (heading-order)
+**Verdict**: all five resolved, locked by new `tests/a11y.spec.ts` gate (0 serious/critical violations)
+
+### FR-7 — nested-interactive (Approach B: sibling overlay)
+
+`src/components/ColorSwatch.tsx` rewritten. The outer element is now a plain `<div>` with no interactive role, and contains two independent `<button>` siblings:
+
+1. A "select this color" `<button>` that wraps only the color block at the top of the swatch. It carries the full `aria-label="color N of 5: hex ..., oklch ..., hsl ..."` the live browser smoke test depends on, and the focus-visible ring.
+2. The lock toggle `<button>` in the metadata area, unchanged in behavior.
+
+First attempt (Approach A — `<div role="button" tabIndex={0}>`) failed axe's `no-focusable-content` rule because a `role="button"` element must not contain focusable descendants. Approach B is the only design that satisfies axe AND preserves both affordances.
+
+Side effect: the three copy `<span>` elements (hex/oklch/hsl) are now siblings of the select button, not children. `e.stopPropagation()` on their onClick handlers was removed because there is no longer a parent button to bubble into. Click-to-copy behavior is unchanged.
+
+### FR-8 — color-contrast (44 nodes)
+
+`src/styles/tokens.css:17` `--fg-tertiary` changed from `#6b7280` (3.74:1 on `#14161b`) to `#94a3b8` (~6.5:1 on `#14161b`). The new value is Tailwind slate-400, which stays in the neutral-cool range required by the brutalist + IDE doctrine. No warm or saturated drift.
+
+Two follow-up color-contrast findings surfaced after the token bump:
+
+1. **JsonSidebar** rendered each palette hex with `style={{ color: c.hex }}` directly — i.e. the text was literally painted with the generated palette color on the dark sidebar background. For dark palette colors (e.g. `#444C5F`) contrast fell below 4.5:1. Fixed by rendering the hex text in `--fg-primary` and prepending a small 8×8 color chip `<span role="img" aria-label="color N swatch">`. The color is now shown as a chip, the text is legible.
+2. **ComponentPreview** paints dynamic user-generated palette colors onto hardcoded white card/input/alert backgrounds. The contrast of those slots is a property of the generated palette, not of app chrome, and the block is a pure visual preview. Marked `inert` + `aria-hidden="true"` so it is excluded from AT and keyboard focus. The `<h2>preview (shadcn slots)</h2>` heading above remains visible.
+
+### FR-9 — aria-prohibited-attr (10 nodes)
+
+`src/components/ContrastMatrix.tsx` — the two `<div>` elements used as column-header and row-header color chips had `aria-label={hex}` without a role. Added `role="img"` so `aria-label` is a permitted attribute. Minimal semantic change, no layout impact.
+
+### FR-10 — scrollable-region-focusable (1 node)
+
+`src/pages/GeneratorPage.tsx` — the `.area-left` wrapper (which is the actual scrollable region per `global.css:137`, containing `<JsonSidebar />`) now has `tabIndex={0}` so keyboard users can focus it and scroll with arrow keys. No aria-label was added because adding `aria-label` to a plain `<div>` would re-trigger FR-9.
+
+Also: `JsonSidebar.tsx` previously had `aria-hidden="true"` on its `<aside>`, which is wrong (a useful JSON preview should not be hidden from AT) AND triggers `aria-hidden-focus` because the aside contains interactive `<button>` elements that set focusedIndex. Replaced with `aria-label="palette JSON preview"` on the `<aside>`.
+
+### FR-11 — heading-order (1 node)
+
+`src/components/ComponentPreview.tsx` — two `<h3>` elements were jumping from the page's `<h1>generator</h1>` without an intervening `<h2>`. Both changed to `<h2>`, matching the sibling `<h2>contrast · colorblind</h2>` in `ContrastMatrix.tsx`.
+
+### Gate — `tests/a11y.spec.ts` (NEW)
+
+New Playwright suite that runs `@axe-core/playwright` against the home route on the MSW-backed dev server with the `wcag2a` + `wcag2aa` tag set, and asserts **zero serious or critical violations**. This pins the gate for future loops so the Loop 1 "WCAG AA self-compliance" regression cannot recur silently.
+
+### Verification evidence (Loop 5)
+
+| Gate | Result |
+|------|--------|
+| `npm run build` | 0 TS errors, 0 warnings |
+| `npx playwright test tests/flow-d.spec.ts tests/theme-bundle-adapter.spec.ts tests/a11y.spec.ts` | **10/10 PASS** (flow-d 5, theme-bundle-adapter 4, a11y 1) |
+| `npx playwright test tests/flow-a-live.spec.ts --config playwright.live.config.ts` | **2/2 PASS** against LIVE Railway backend |
+| Doctrine greps (vocabulary blacklist, purple/indigo, bounce easing) | 0 substantive matches (only "unlock color" aria-labels and `/* no bounce */` comment false-positives) |
+| 21 keyboard shortcuts (HelpOverlay.tsx, hooks/) | unchanged — no diff |
+| axe-core before / after | **before (Loop 4)**: 4 serious rules (`nested-interactive` 5, `color-contrast` 44, `aria-prohibited-attr` 10, `scrollable-region-focusable` 1) + 1 moderate (`heading-order` 1). **after (Loop 5)**: 0 serious, 0 critical, 0 moderate-within-scan |
+
+### Files changed — Loop 5
+
+- `src/components/ColorSwatch.tsx` — FR-7 Approach B refactor (outer `<div>`, inner select `<button>` + lock `<button>` siblings, copy spans no longer need stopPropagation)
+- `src/styles/tokens.css` — FR-8 `--fg-tertiary` `#6b7280 → #94a3b8` (Tailwind slate-400)
+- `src/components/ContrastMatrix.tsx` — FR-9 `role="img"` added to two color-chip divs
+- `src/pages/GeneratorPage.tsx` — FR-10 `tabIndex={0}` on `.area-left` wrapper
+- `src/components/ComponentPreview.tsx` — FR-11 two `<h3>` → `<h2>`; FR-8 follow-up `inert` + `aria-hidden="true"` on the demo block
+- `src/components/JsonSidebar.tsx` — FR-8 follow-up: hex text now uses `--fg-primary` + 8×8 chip sibling with `role="img"`; `<aside aria-hidden="true">` → `<aside aria-label="palette JSON preview">`
+- `tests/a11y.spec.ts` — **NEW** axe-core gate
+
+---
 
 ## Loop 4 — FR-6 resolution (2026-04-09)
 

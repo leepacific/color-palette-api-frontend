@@ -23,57 +23,53 @@ export function ColorSwatch({ color, index }: ColorSwatchProps) {
     window.setTimeout(() => setFlashed(null), 160);
   };
 
+  // Loop 5 FR-7 fix (Approach B):
+  // The outer element is a plain <div> (no interactive role) so it can legally
+  // contain the inner <button> elements (select + lock). The "select this color"
+  // affordance lives on a dedicated button overlaying the color block at the top
+  // of the swatch, and the lock toggle is a sibling button in the metadata area.
   return (
-    <button
-      type="button"
-      className={`relative flex flex-col flex-1 min-w-0 font-mono text-left transition-colors duration-fast focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-accent`}
+    <div
+      className="relative flex flex-col flex-1 min-w-0 font-mono text-left"
       style={{
         border: focused ? '2px solid var(--border-accent)' : '1px solid var(--border-base)',
       }}
-      onClick={() => setFocusedIndex(index)}
-      aria-label={`color ${index + 1} of 5: hex ${color.hex}, oklch ${formatOklch(color.oklch)}, hsl ${formatHsl(color.hsl)}${locked ? ', locked' : ''}`}
     >
-      <div
-        className="flex-1 min-h-[160px] relative"
+      {/* Color block + main select button (carries the full aria-label) */}
+      <button
+        type="button"
+        className="flex-1 min-h-[160px] relative block w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-accent"
         style={{ backgroundColor: color.hex }}
+        onClick={() => setFocusedIndex(index)}
+        aria-label={`color ${index + 1} of 5: hex ${color.hex}, oklch ${formatOklch(color.oklch)}, hsl ${formatHsl(color.hsl)}${locked ? ', locked' : ''}`}
       >
         {locked && (
           <span className="absolute top-2 right-2 keycap" aria-hidden>
             L
           </span>
         )}
-        <span
-          className="absolute top-2 left-2 keycap"
-          aria-hidden
-        >
+        <span className="absolute top-2 left-2 keycap" aria-hidden>
           {index + 1}
         </span>
-      </div>
+      </button>
+
+      {/* Metadata area — sibling of the select button, contains lock toggle */}
       <div className="bg-bg-raised border-t border-border-base px-3 py-2 flex flex-col gap-0.5">
         <span
           className={`text-3xl tracking-[0.02em] text-fg-primary ${flashed === 'hex' ? 'copy-flash' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onCopy('hex', formatHex(color.hex));
-          }}
+          onClick={() => onCopy('hex', formatHex(color.hex))}
         >
           {formatHex(color.hex)}
         </span>
         <span
           className={`text-sm text-fg-secondary ${flashed === 'oklch' ? 'copy-flash' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onCopy('oklch', formatOklch(color.oklch));
-          }}
+          onClick={() => onCopy('oklch', formatOklch(color.oklch))}
         >
           {formatOklch(color.oklch)}
         </span>
         <span
           className={`text-xs text-fg-tertiary ${flashed === 'hsl' ? 'copy-flash' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            onCopy('hsl', formatHsl(color.hsl));
-          }}
+          onClick={() => onCopy('hsl', formatHsl(color.hsl))}
         >
           {formatHsl(color.hsl)}
         </span>
@@ -84,16 +80,13 @@ export function ColorSwatch({ color, index }: ColorSwatchProps) {
           <button
             type="button"
             className="font-mono text-xs text-fg-secondary hover:text-accent-primary focus-visible:text-accent-primary"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleLock(index);
-            }}
+            onClick={() => toggleLock(index)}
             aria-label={locked ? `unlock color ${index + 1}` : `lock color ${index + 1}`}
           >
             [{locked ? 'locked' : 'lock'}]
           </button>
         </div>
       </div>
-    </button>
+    </div>
   );
 }

@@ -14,9 +14,9 @@ export function ComponentPreview() {
   if (!palette || state !== 'default') {
     return (
       <section aria-label="component preview" className="p-4">
-        <h3 className="font-mono text-sm text-fg-tertiary mb-3">
+        <h2 className="font-mono text-sm text-fg-tertiary mb-3">
           component preview
-        </h3>
+        </h2>
         <div className="font-mono text-xs text-fg-tertiary flex items-center gap-1">
           <BlinkingCaret />
           <span>no semantic tokens</span>
@@ -34,11 +34,19 @@ export function ComponentPreview() {
 
   return (
     <section aria-label="component preview" className="p-4 flex flex-col gap-3">
-      <h3 className="font-mono text-sm text-fg-tertiary">
+      <h2 className="font-mono text-sm text-fg-tertiary">
         preview (shadcn slots)
-      </h3>
+      </h2>
 
+      {/* Loop 5 FR-8 follow-up: this block paints dynamic user-generated palette
+          colors onto shadcn slots. Contrast is a property of the generated
+          palette, not of app chrome, so the block is marked inert + aria-hidden
+          to exclude it from a11y scans and keyboard focus. The <h2> above and
+          the ContrastMatrix panel carry the accessible affordances. */}
       <div
+        // @ts-expect-error — `inert` is a valid HTML attribute (TS types lag)
+        inert=""
+        aria-hidden="true"
         className="border border-border-base p-3 flex flex-col gap-2"
         style={{ backgroundColor: bg, color: '#0B0C10' }}
       >

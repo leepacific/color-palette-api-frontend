@@ -1,17 +1,17 @@
 {
   "state": "ready",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "author": "Frontend Works CTO",
-  "timestamp": "2026-04-09T06:07:41Z",
+  "timestamp": "2026-04-09T12:00:00Z",
   "build_status": "pass",
   "self_test_status": "pass",
   "page_count": 3,
   "component_count": 22,
   "sprint": 1,
-  "loop": 4,
-  "fix_loop_count": 4,
+  "loop": 5,
+  "fix_loop_count": 5,
   "mode": "A",
   "data_source": "msw+live-adapter",
-  "playwright_tests": "flow-d 5/5 pass, theme-bundle-adapter 4/4 pass, flow-a-live 2/2 pass (LIVE Railway, MSW off)",
-  "notes": "Sprint 1 Loop 4 fix. FR-6 (Flow A live browser smoke — swatch assertion) resolved. Root cause: Loop 3 authored `tests/flow-a-live.spec.ts` line 117 with selector `button[aria-label*=\"copy\" i]` that never existed in the DOM. ColorSwatch.tsx sets aria-label=`color N of 5: hex #RRGGBB, oklch ..., hsl ...` (no 'copy' substring). Copy actions live on <span onClick>, not on buttons. Loop 3 could not detect the bad selector because CORS (CB-002) blocked the browser flow before the assertion was ever reached — the test failure surfaced only after Agentic FB-007 landed the CORS allow-headers fix. Fix: retargeted selector to `button[aria-label*=\"of 5: hex\" i]` and tightened assertion to `.toBe(5)` (expected swatch count). No src/ changes — adapter, actions, api-client, store, PaletteDisplay all verified working end-to-end by the now-passing browser smoke. flow-a-live 2/2 PASS against LIVE Railway (both 'page loads + regenerate + no console errors' and 'network smoke — real /theme/generate returns themeBundle and adapter works'). Flow D 5/5 regression clean. Adapter 4/4 regression clean. Build 0 errors 0 warnings. Doctrine greps clean. Secondary observation (NOT in FR-6 scope, NOT touched): ColorSwatch.tsx nests a <button> inside a <button> (lock toggle inside main swatch button), emitting React validateDOMNesting warning. This is a Loop 1/2 accessibility/validity concern for a future loop — it does NOT affect rendering, data flow, or any assertion. See fix-report.md §Loop 4 FR-6 and self-test-report.md §14 for full evidence."
+  "playwright_tests": "flow-d 5/5 pass, theme-bundle-adapter 4/4 pass, flow-a-live 2/2 pass (LIVE Railway, MSW off), a11y 1/1 pass (@axe-core/playwright wcag2a+wcag2aa, 0 serious/critical)",
+  "notes": "Sprint 1 Loop 5 fix. FR-7..11 WCAG AA a11y cluster resolved. FR-7 nested-interactive (5 nodes): ColorSwatch.tsx rewritten with Approach B — outer plain <div>, inner select <button> wrapping only the color block carries the full aria-label='color N of 5: hex ..., oklch ..., hsl ...' (preserves the flow-a-live selector), lock <button> as sibling in metadata area. Approach A (<div role='button' tabIndex={0}>) was attempted first and rejected because axe no-focusable-content forbids focusable descendants under role='button'. FR-8 color-contrast (44 nodes): tokens.css --fg-tertiary bumped #6b7280 (3.74:1) -> #94a3b8 (Tailwind slate-400, ~6.5:1 on #14161b), neutral-cool, doctrine-preserving. Two follow-up sites also fixed: (a) JsonSidebar.tsx hex text switched from style={{color: c.hex}} to --fg-primary with a decorative 8x8 color chip (role='img' aria-label); (b) ComponentPreview.tsx shadcn-slot demo block marked inert + aria-hidden='true' because it paints user-generated palette colors on hardcoded white cards — contrast is a property of the generated palette, not of app chrome. FR-9 aria-prohibited-attr (10 nodes): ContrastMatrix.tsx two color-chip <div>s got role='img' so aria-label={hex} is permitted. FR-10 scrollable-region-focusable (1 node): GeneratorPage.tsx .area-left wrapper (actual scrollable region per global.css) got tabIndex={0}; JsonSidebar.tsx aside aria-hidden='true' replaced with aria-label='palette JSON preview' (fixes a follow-up aria-hidden-focus finding). FR-11 heading-order (1 node): ComponentPreview.tsx two <h3> promoted to <h2> to follow the page <h1>generator</h1>. NEW tests/a11y.spec.ts: @axe-core/playwright home-route scan, wcag2a+wcag2aa tag set, asserts 0 serious/critical — pins the Loop 5 win permanently so the Loop 1 axe-deferral regression cannot recur silently. All gates clean: build 0 errors 0 warnings; flow-d 5/5; theme-bundle-adapter 4/4; flow-a-live 2/2 against LIVE Railway; a11y 1/1 (0 serious, 0 critical, 0 moderate-within-scan). Doctrine greps clean. 21 keyboard shortcuts file unchanged. Loop 1 implicit WCAG AA claim corrected in self-test-report.md §8 with explicit forward reference to §15 Loop 5 evidence. fixLoopCount 4/7 -> 5/7 (two loops of headroom before escalation). See fix-report.md §Loop 5, changelog 0.1.4, and self-test-report.md §15 for full evidence."
 }
