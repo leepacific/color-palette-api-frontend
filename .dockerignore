@@ -1,0 +1,14 @@
+node_modules
+dist
+build
+.env
+.env.local
+.env.*.local
+.vite
+.cache
+test-results
+playwright-report
+.playwright
+.git
+.gitignore
+*.log
