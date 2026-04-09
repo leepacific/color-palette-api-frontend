@@ -1,8 +1,13 @@
 {
   "state": "callback_pending",
-  "active_callbacks": ["CB-002", "CB-003"],
-  "resolved_callbacks": ["CB-001"],
-  "timestamp": "2026-04-09T05:00:00Z",
+  "active_callbacks": [
+    "CB-002",
+    "CB-003"
+  ],
+  "resolved_callbacks": [
+    "CB-001"
+  ],
+  "timestamp": "2026-04-09T05:41:23Z",
   "source": "frontend-builder",
   "target": "agentic-conglomerate",
   "project": "color-palette-api",
@@ -20,7 +25,10 @@
       "severity": "critical",
       "state": "filed",
       "filed_at": "2026-04-09T05:00:00Z",
-      "blocking": ["sprint-1-release", "browser-level-live-smoke"],
+      "blocking": [
+        "sprint-1-release",
+        "browser-level-live-smoke"
+      ],
       "doc": "CB-002-cors-allow-headers.md",
       "summary": "Backend CORS allow-headers list missing idempotency-key + request-id. Frontend cannot reach live API from a browser. Fix is ~1 line of Rust + Railway redeploy.",
       "filed_by": "Frontend Guard QA Director (Loop 3 verification)"
@@ -36,5 +44,6 @@
       "summary": "/palette/random?seed= returns non-deterministic palettes. Contradicts docs/frontend-handoff.md §12 line 382 which documents seeded responses as deterministic. Backend can fix as a bug (plumb seed into RNG) OR a docs clarification. Non-blocking for Sprint 1 because Path B never calls /palette/random.",
       "filed_by": "Frontend Guard QA Director (Loop 3 verification)"
     }
-  }
+  },
+  "author": "Frontend-Builder Orchestrator"
 }
