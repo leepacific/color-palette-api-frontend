@@ -1,0 +1,12 @@
+{
+  "state": "pending",
+  "judgment": null,
+  "judge": null,
+  "timestamp": null,
+  "fe_defect_count": 0,
+  "backend_defect_count": 0,
+  "spec_mismatch_count": 0,
+  "callback_b_triggered": false,
+  "fix_loop_count": 0,
+  "notes": ""
+}

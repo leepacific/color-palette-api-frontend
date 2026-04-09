@@ -1,0 +1,3574 @@
+openapi: 3.1.0
+info:
+  title: Color Palette API
+  description: 'Developer-first REST API for generating coolors.co-quality color palettes
+    with 9-metric quality scoring. Sprint 5: Stripe-style envelope + camelCase + utoipa-generated
+    OpenAPI 3.1.'
+  license:
+    name: ''
+  version: 1.5.0
+servers:
+- url: https://color-palette-api-production-a68b.up.railway.app
+  description: Production
+- url: http://localhost:3000
+  description: Local development
+paths:
+  /api/v1/admin/keys:
+    get:
+      tags:
+      - admin
+      operationId: listApiKeys
+      responses:
+        '200':
+          description: List of API keys
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Collection_Resource_ApiKeyWire'
+        '403':
+          description: Not admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+    post:
+      tags:
+      - admin
+      operationId: createApiKey
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateKeyRequest'
+        required: true
+      responses:
+        '200':
+          description: API key created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_ApiKeyWire'
+        '400':
+          description: Invalid role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Not admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/admin/keys/{id}:
+    delete:
+      tags:
+      - admin
+      operationId: deleteApiKey
+      parameters:
+      - name: id
+        in: path
+        description: Key ID
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Deleted
+        '403':
+          description: Not admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Key not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/admin/stats:
+    get:
+      tags:
+      - admin
+      operationId: adminStats
+      responses:
+        '200':
+          description: Service stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_AdminStatsResponse'
+        '403':
+          description: Not admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/admin/users/{firebase_uid}/tier:
+    post:
+      tags:
+      - admin
+      operationId: setUserTier
+      parameters:
+      - name: firebase_uid
+        in: path
+        description: Firebase UID
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetTierRequest'
+        required: true
+      responses:
+        '200':
+          description: Tier updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_SetTierBody'
+        '400':
+          description: Invalid tier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Not admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/analyze/contrast:
+    post:
+      tags:
+      - analysis
+      operationId: analyzeContrast
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContrastRequest'
+        required: true
+      responses:
+        '200':
+          description: WCAG contrast ratio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_ContrastResponse'
+        '400':
+          description: Invalid hex
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/analyze/contrast-matrix:
+    post:
+      tags:
+      - analysis
+      operationId: analyzeContrastMatrix
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContrastMatrixRequest'
+        required: true
+      responses:
+        '200':
+          description: WCAG contrast matrix + colorblind simulation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_ContrastMatrixResponse'
+        '400':
+          description: Invalid palette or severity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/analyze/explain:
+    post:
+      tags:
+      - analysis
+      operationId: analyzeExplain
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaletteExplanationRequest'
+        required: true
+      responses:
+        '200':
+          description: Palette explanation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_PaletteExplanation'
+        '400':
+          description: Invalid palette or hint
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/analyze/palette:
+    post:
+      tags:
+      - analysis
+      operationId: analyzePalette
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzePaletteRequest'
+        required: true
+      responses:
+        '200':
+          description: Palette analysis metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_PaletteAnalysisResponse'
+        '400':
+          description: Invalid palette
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/auth/exchange:
+    post:
+      tags:
+      - auth
+      operationId: authExchange
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExchangeRequest'
+        required: true
+      responses:
+        '200':
+          description: API key issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_ExchangeBody'
+        '400':
+          description: Missing firebaseIdToken
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Throttled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Firebase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/color/shades:
+    post:
+      tags:
+      - color
+      operationId: generateShades
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShadesRequest'
+        required: true
+      responses:
+        '200':
+          description: Generated shades
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_ColorListWire'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/color/{color}:
+    get:
+      tags:
+      - color
+      operationId: getColorInfo
+      parameters:
+      - name: color
+        in: path
+        description: Hex color, e.g. 4A90D9
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Color information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_ColorInfoResponse'
+        '400':
+          description: Invalid color hex
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/color/{color}/blindness:
+    get:
+      tags:
+      - color
+      operationId: getColorBlindness
+      parameters:
+      - name: color
+        in: path
+        description: Hex color
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Color-blindness simulation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_BlindnessResponse'
+        '400':
+          description: Invalid color hex
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/docs:
+    get:
+      tags:
+      - docs
+      operationId: docsRedirect
+      responses:
+        '308':
+          description: Permanent redirect to /swagger-ui
+  /api/v1/export/code:
+    post:
+      tags:
+      - export
+      summary: 'Sprint 6 Pillar 2: unified 9-format code export endpoint.'
+      operationId: exportCode
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodeExportRequest'
+        required: true
+      responses:
+        '200':
+          description: Code export ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_CodeExportResponse'
+        '400':
+          description: Invalid format or input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/export/css:
+    post:
+      tags:
+      - export
+      operationId: exportCss
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+        required: true
+      responses:
+        '200':
+          description: CSS variables code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_ExportResponse'
+        '400':
+          description: Invalid palette
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/export/design-tokens:
+    post:
+      tags:
+      - export
+      operationId: exportDesignTokens
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DesignTokensRequest'
+        required: true
+      responses:
+        '200':
+          description: Design tokens export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_DesignTokensBody'
+        '400':
+          description: Missing theme or palette
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/export/figma-variables:
+    post:
+      tags:
+      - export
+      operationId: exportFigmaVariables
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FigmaVariablesRequest'
+        required: true
+      responses:
+        '200':
+          description: Figma Variables export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_FigmaVariablesBody'
+        '400':
+          description: Missing theme
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/export/scss:
+    post:
+      tags:
+      - export
+      operationId: exportScss
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+        required: true
+      responses:
+        '200':
+          description: SCSS variables code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_ExportResponse'
+        '400':
+          description: Invalid palette
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/export/tailwind:
+    post:
+      tags:
+      - export
+      operationId: exportTailwind
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+        required: true
+      responses:
+        '200':
+          description: Tailwind config snippet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_ExportResponse'
+        '400':
+          description: Invalid palette
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/health:
+    get:
+      tags:
+      - health
+      operationId: health
+      responses:
+        '200':
+          description: Service health
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_HealthResponse'
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/palette/adjust:
+    post:
+      tags:
+      - palette
+      operationId: adjustPalette
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdjustRequest'
+        required: true
+      responses:
+        '200':
+          description: Adjusted palette
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_ColorListWire'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/palette/blend:
+    post:
+      tags:
+      - palette
+      operationId: blendPalette
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlendRequest'
+        required: true
+      responses:
+        '200':
+          description: Blended color list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_ColorListWire'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/palette/generate:
+    post:
+      tags:
+      - palette
+      operationId: generatePalette
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateRequest'
+        required: true
+      responses:
+        '200':
+          description: Palette generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_PaletteWire'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Quality gate could not be satisfied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited or quota exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/palette/lock:
+    post:
+      tags:
+      - palette
+      operationId: lockPalette
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LockRequest'
+        required: true
+      responses:
+        '200':
+          description: Locked palette generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_PaletteWire'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Quality gate could not be satisfied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/palette/random:
+    get:
+      tags:
+      - palette
+      operationId: randomPalette
+      responses:
+        '200':
+          description: Random palette generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_PaletteWire'
+        '401':
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited or quota exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/theme/generate:
+    post:
+      tags:
+      - theme
+      operationId: generateTheme
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ThemeRequest'
+        required: true
+      responses:
+        '200':
+          description: Generated theme bundle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_Theme'
+        '400':
+          description: Invalid primary color
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Quality gate or WCAG unachievable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/user/account:
+    delete:
+      tags:
+      - user
+      operationId: deleteAccount
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteRequest'
+        required: true
+      responses:
+        '200':
+          description: Account deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_DeleteBody'
+        '400':
+          description: Missing Firebase ID token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Invalid token or UID mismatch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Legacy key cannot delete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Firebase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/user/me:
+    get:
+      tags:
+      - user
+      operationId: getUserMe
+      responses:
+        '200':
+          description: Authenticated user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_UserBody'
+        '401':
+          description: Missing/invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/user/quota:
+    get:
+      tags:
+      - user
+      operationId: getUserQuota
+      responses:
+        '200':
+          description: Monthly quota snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_QuotaBody'
+        '401':
+          description: Missing/invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+  /api/v1/user/rotate-key:
+    post:
+      tags:
+      - user
+      operationId: rotateApiKey
+      responses:
+        '200':
+          description: New API key issued; old key revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource_RotateBody'
+        '401':
+          description: Missing/invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Legacy key cannot rotate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      security:
+      - apiKey: []
+components:
+  schemas:
+    AdjustRequest:
+      type: object
+      required:
+      - palette
+      properties:
+        brightnessScale:
+          type:
+          - number
+          - 'null'
+          format: double
+        hueShift:
+          type:
+          - number
+          - 'null'
+          format: double
+        palette:
+          type: array
+          items:
+            type: string
+        saturationScale:
+          type:
+          - number
+          - 'null'
+          format: double
+        temperatureShift:
+          type:
+          - number
+          - 'null'
+          format: double
+    AdminStatsResponse:
+      type: object
+      required:
+      - totalRequests
+      - activeKeys
+      - requestsToday
+      properties:
+        activeKeys:
+          type: integer
+          format: int64
+        requestsToday:
+          type: integer
+          format: int64
+        totalRequests:
+          type: integer
+          format: int64
+    AnalysisMetrics:
+      type: object
+      required:
+      - harmony
+      - distinctness
+      - lightnessDistribution
+      - temperatureCoherence
+      - saturationCoherence
+      - gamutSpread
+      - uiUtility
+      - colorBlindSafety
+      - accessibility
+      properties:
+        accessibility:
+          type: number
+          format: double
+        colorBlindSafety:
+          type: number
+          format: double
+        distinctness:
+          type: number
+          format: double
+        gamutSpread:
+          type: number
+          format: double
+        harmony:
+          type: number
+          format: double
+        lightnessDistribution:
+          type: number
+          format: double
+        saturationCoherence:
+          type: number
+          format: double
+        temperatureCoherence:
+          type: number
+          format: double
+        uiUtility:
+          type: number
+          format: double
+    AnalyzePaletteRequest:
+      type: object
+      required:
+      - palette
+      properties:
+        palette:
+          type: array
+          items:
+            type: string
+    ApiKey:
+      type: object
+      required:
+      - id
+      - name
+      - role
+      - createdAt
+      - requestCount
+      properties:
+        createdAt:
+          type: string
+        id:
+          type: string
+        key:
+          type:
+          - string
+          - 'null'
+        lastUsedAt:
+          type:
+          - string
+          - 'null'
+        name:
+          type: string
+        requestCount:
+          type: integer
+          format: int64
+        role:
+          type: string
+    ApiKeyWire:
+      type: object
+      description: 'Sprint 5 wire projection: omits `id` and `createdAt` (they become
+        the
+
+        envelope''s top-level `id`/`createdAt` via `Resource<ApiKeyWire>`).'
+      required:
+      - name
+      - role
+      - requestCount
+      properties:
+        key:
+          type:
+          - string
+          - 'null'
+        lastUsedAt:
+          type:
+          - string
+          - 'null'
+        name:
+          type: string
+        requestCount:
+          type: integer
+          format: int64
+        role:
+          type: string
+    BlendRequest:
+      type: object
+      required:
+      - colors
+      properties:
+        colors:
+          type: array
+          items:
+            type: string
+        steps:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+    BlindnessResponse:
+      type: object
+      required:
+      - original
+      - protanopia
+      - deuteranopia
+      - tritanopia
+      - achromatopsia
+      properties:
+        achromatopsia:
+          type: string
+        deuteranopia:
+          type: string
+        original:
+          type: string
+        protanopia:
+          type: string
+        tritanopia:
+          type: string
+    ChromaRange:
+      type: object
+      required:
+      - min
+      - max
+      - mean
+      properties:
+        max:
+          type: number
+          format: double
+        mean:
+          type: number
+          format: double
+        min:
+          type: number
+          format: double
+    CmykValue:
+      type: object
+      required:
+      - c
+      - m
+      - y
+      - k
+      properties:
+        c:
+          type: number
+          format: double
+        k:
+          type: number
+          format: double
+        m:
+          type: number
+          format: double
+        y:
+          type: number
+          format: double
+    CodeExportFormat:
+      type: string
+      description: The 9 supported code export formats.
+      enum:
+      - tailwind-config
+      - css-vars-hex
+      - css-vars-oklch
+      - shadcn-globals
+      - scss
+      - mui-palette
+      - swift-uicolor
+      - android-xml
+      - dtcg-json
+    CodeExportRequest:
+      type: object
+      required:
+      - format
+      - theme
+      properties:
+        cssVariableSyntax:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/CssVarSyntax'
+        format:
+          type: string
+          description: 'Format string — one of the 9 supported values. Parsed by the
+            handler
+
+            so that invalid values surface `INVALID_FORMAT` rather than the
+
+            generic serde `INVALID_REQUEST_BODY` code.'
+        mode:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/ExportMode'
+        seed:
+          type:
+          - string
+          - 'null'
+        theme:
+          $ref: '#/components/schemas/CodeExportTheme'
+    CodeExportResponse:
+      type: object
+      required:
+      - format
+      - code
+      - filename
+      - pasteInto
+      - targetDocs
+      - targetVersion
+      - notes
+      properties:
+        code:
+          type: string
+        filename:
+          type: string
+        format:
+          type: string
+        notes:
+          type: string
+        pasteInto:
+          type: string
+        seed:
+          type:
+          - string
+          - 'null'
+        targetDocs:
+          type: string
+        targetVersion:
+          type: string
+    CodeExportTheme:
+      type: object
+      description: 'Flat theme bundle accepted by /export/code. Either a semantic
+        token bundle
+
+        OR a simple named palette. Kept permissive to maximise compat.'
+      properties:
+        colors:
+          type:
+          - object
+          - 'null'
+          description: Optional raw palette as a name→hex map.
+          additionalProperties:
+            type: string
+          propertyNames:
+            type: string
+        primary:
+          type:
+          - string
+          - 'null'
+          description: Optional primary hex (used when semantic tokens are not supplied).
+    Collection_Resource_ApiKeyWire:
+      type: object
+      description: List envelope.
+      required:
+      - object
+      - data
+      - hasMore
+      properties:
+        data:
+          type: array
+          items:
+            allOf:
+            - type: object
+              description: 'Sprint 5 wire projection: omits `id` and `createdAt` (they
+                become the
+
+                envelope''s top-level `id`/`createdAt` via `Resource<ApiKeyWire>`).'
+              required:
+              - name
+              - role
+              - requestCount
+              properties:
+                key:
+                  type:
+                  - string
+                  - 'null'
+                lastUsedAt:
+                  type:
+                  - string
+                  - 'null'
+                name:
+                  type: string
+                requestCount:
+                  type: integer
+                  format: int64
+                role:
+                  type: string
+            - type: object
+              required:
+              - object
+              - id
+              - createdAt
+              properties:
+                createdAt:
+                  type: string
+                  description: ISO 8601 UTC timestamp.
+                id:
+                  type: string
+                  description: Stable identifier (persistent) or correlation ID (ephemeral).
+                object:
+                  type: string
+                  description: Resource type discriminator (e.g. "palette", "color",
+                    "user").
+            description: Single-resource envelope.
+        hasMore:
+          type: boolean
+        object:
+          type: string
+          description: Always "list".
+        totalCount:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+    ColorInfoResponse:
+      type: object
+      required:
+      - hex
+      - rgb
+      - hsl
+      - oklch
+      - cmyk
+      - name
+      - luminance
+      - complementary
+      - analogous
+      properties:
+        analogous:
+          type: array
+          items:
+            type: string
+        cmyk:
+          $ref: '#/components/schemas/CmykValue'
+        complementary:
+          type: string
+        hex:
+          type: string
+        hsl:
+          $ref: '#/components/schemas/HslValue'
+        luminance:
+          type: number
+          format: double
+        name:
+          type: string
+        oklch:
+          $ref: '#/components/schemas/OklchValue'
+        rgb:
+          $ref: '#/components/schemas/RgbValue'
+    ColorListWire:
+      type: object
+      description: 'Wire projection for `palette/adjust`, `palette/blend`, `color/shades`:
+
+        list of colors returned under `colorList` object.'
+      required:
+      - colors
+      properties:
+        colors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ColorOutput'
+    ColorOutput:
+      type: object
+      required:
+      - hex
+      - rgb
+      - hsl
+      - oklch
+      - name
+      properties:
+        hex:
+          type: string
+        hsl:
+          $ref: '#/components/schemas/HslValue'
+        name:
+          type: string
+        oklch:
+          $ref: '#/components/schemas/OklchValue'
+        rgb:
+          $ref: '#/components/schemas/RgbValue'
+    ColorblindSimulation:
+      type: object
+      required:
+      - protanopia
+      - deuteranopia
+      - tritanopia
+      - protanomaly
+      - deuteranomaly
+      - tritanomaly
+      - achromatopsia
+      - achromatomaly
+      properties:
+        achromatomaly:
+          type: array
+          items:
+            type: string
+        achromatopsia:
+          type: array
+          items:
+            type: string
+        deuteranomaly:
+          type: array
+          items:
+            type: string
+        deuteranopia:
+          type: array
+          items:
+            type: string
+        protanomaly:
+          type: array
+          items:
+            type: string
+        protanopia:
+          type: array
+          items:
+            type: string
+        tritanomaly:
+          type: array
+          items:
+            type: string
+        tritanopia:
+          type: array
+          items:
+            type: string
+    ContrastMatrix:
+      type: object
+      required:
+      - min
+      - max
+      properties:
+        max:
+          $ref: '#/components/schemas/ContrastPair'
+        min:
+          $ref: '#/components/schemas/ContrastPair'
+    ContrastMatrixEntry:
+      type: object
+      required:
+      - fgIndex
+      - bgIndex
+      - fgHex
+      - bgHex
+      - ratio
+      - passes
+      properties:
+        bgHex:
+          type: string
+        bgIndex:
+          type: integer
+          minimum: 0
+        fgHex:
+          type: string
+        fgIndex:
+          type: integer
+          minimum: 0
+        passes:
+          $ref: '#/components/schemas/ContrastMatrixPasses'
+        ratio:
+          type: number
+          format: double
+    ContrastMatrixPasses:
+      type: object
+      required:
+      - aaNormal
+      - aaLarge
+      - aaaNormal
+      - aaaLarge
+      properties:
+        aaLarge:
+          type: boolean
+        aaNormal:
+          type: boolean
+        aaaLarge:
+          type: boolean
+        aaaNormal:
+          type: boolean
+    ContrastMatrixRequest:
+      type: object
+      required:
+      - palette
+      properties:
+        includeColorblind:
+          type:
+          - boolean
+          - 'null'
+        palette:
+          type: array
+          items:
+            type: string
+        severity:
+          type:
+          - number
+          - 'null'
+          format: float
+    ContrastMatrixResponse:
+      type: object
+      required:
+      - palette
+      - matrix
+      - matricesSource
+      properties:
+        colorblind:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/ColorblindSimulation'
+        matricesSource:
+          $ref: '#/components/schemas/MatricesSource'
+        matrix:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContrastMatrixEntry'
+        palette:
+          type: array
+          items:
+            type: string
+        seed:
+          type:
+          - string
+          - 'null'
+    ContrastPair:
+      type: object
+      required:
+      - pair
+      - ratio
+      properties:
+        pair:
+          type: array
+          items:
+            type: string
+        ratio:
+          type: number
+          format: double
+    ContrastRequest:
+      type: object
+      required:
+      - foreground
+      - background
+      properties:
+        background:
+          type: string
+        foreground:
+          type: string
+    ContrastResponse:
+      type: object
+      required:
+      - ratio
+      - ratioString
+      - aa
+      - aaa
+      properties:
+        aa:
+          $ref: '#/components/schemas/WcagLevel'
+        aaa:
+          $ref: '#/components/schemas/WcagLevel'
+        ratio:
+          type: number
+          format: double
+        ratioString:
+          type: string
+    CreateKeyRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+        role:
+          type:
+          - string
+          - 'null'
+    CssVarSyntax:
+      type: string
+      enum:
+      - hsl
+      - oklch
+    DeleteBody:
+      type: object
+      required:
+      - deleted
+      - firebaseUid
+      - keysDeleted
+      - firestoreDeleted
+      properties:
+        deleted:
+          type: boolean
+        firebaseUid:
+          type: string
+        firestoreDeleted:
+          type: boolean
+        keysDeleted:
+          type: integer
+          minimum: 0
+    DeleteRequest:
+      type: object
+      properties:
+        firebaseIdToken:
+          type:
+          - string
+          - 'null'
+    DesignTokensBody:
+      type: object
+      required:
+      - tokens
+      - format
+      properties:
+        format:
+          type: string
+        tokens:
+          description: Raw DTCG (or legacy) token tree.
+    DesignTokensRequest:
+      type: object
+      properties:
+        emitReferences:
+          type: boolean
+        format:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/TokenFormat'
+        palette:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/PaletteExportPayload'
+        theme:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/Theme'
+    ErrorBody:
+      type: object
+      required:
+      - type
+      - code
+      - message
+      - docUrl
+      - requestId
+      properties:
+        code:
+          type: string
+        docUrl:
+          type: string
+        errors:
+          type:
+          - array
+          - 'null'
+          items:
+            $ref: '#/components/schemas/SubError'
+        message:
+          type: string
+        param:
+          type:
+          - string
+          - 'null'
+        requestId:
+          type: string
+        type:
+          $ref: '#/components/schemas/ErrorType'
+    ErrorEnvelope:
+      type: object
+      required:
+      - object
+      - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+        object:
+          type: string
+    ErrorType:
+      type: string
+      description: 'Stripe-style snake_case error taxonomy (the ONE intentional snake_case
+
+        exception per Sprint 5 spec §FR-2).'
+      enum:
+      - invalid_request_error
+      - authentication_error
+      - permission_error
+      - rate_limit_error
+      - quota_exceeded_error
+      - service_unavailable_error
+      - api_error
+      - processing_error
+    ExchangeBody:
+      type: object
+      required:
+      - apiKey
+      - keyPrefix
+      - tier
+      - tierSource
+      - firebaseUid
+      - firstLogin
+      properties:
+        apiKey:
+          type: string
+        email:
+          type:
+          - string
+          - 'null'
+        firebaseUid:
+          type: string
+        firstLogin:
+          type: boolean
+        keyPrefix:
+          type: string
+        monthlyQuota:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          minimum: 0
+        tier:
+          type: string
+        tierSource:
+          type: string
+    ExchangeRequest:
+      type: object
+      properties:
+        firebaseIdToken:
+          type:
+          - string
+          - 'null'
+        githubAccessToken:
+          type:
+          - string
+          - 'null'
+    ExportMode:
+      type: string
+      enum:
+      - light
+      - dark
+      - both
+    ExportRequest:
+      type: object
+      required:
+      - palette
+      properties:
+        format:
+          type:
+          - string
+          - 'null'
+        palette:
+          type: array
+          items:
+            type: string
+        prefix:
+          type:
+          - string
+          - 'null'
+    ExportResponse:
+      type: object
+      required:
+      - code
+      properties:
+        code:
+          type: string
+    FigmaVariablesBody:
+      type: object
+      required:
+      - variables
+      - collectionName
+      properties:
+        collectionName:
+          type: string
+        variables:
+          description: Figma Variables REST payload.
+    FigmaVariablesRequest:
+      type: object
+      properties:
+        collectionName:
+          type:
+          - string
+          - 'null'
+        theme:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/Theme'
+    Framework:
+      type: string
+      enum:
+      - css-variables
+      - tailwind
+    GenerateRequest:
+      type: object
+      properties:
+        count:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+        harmony:
+          type:
+          - string
+          - 'null'
+        hue:
+          type:
+          - number
+          - 'null'
+          format: double
+        luminance:
+          type:
+          - array
+          - 'null'
+          items:
+            type: number
+            format: double
+        maxIterations:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+        minScore:
+          type:
+          - number
+          - 'null'
+          format: double
+        saturation:
+          type:
+          - array
+          - 'null'
+          items:
+            type: number
+            format: double
+        seed:
+          type:
+          - string
+          - 'null'
+    HealthResponse:
+      type: object
+      required:
+      - status
+      - version
+      - uptime
+      properties:
+        status:
+          type: string
+        uptime:
+          type: integer
+          format: int64
+          minimum: 0
+        version:
+          type: string
+    HslValue:
+      type: object
+      required:
+      - h
+      - s
+      - l
+      properties:
+        h:
+          type: number
+          format: double
+        l:
+          type: number
+          format: double
+        s:
+          type: number
+          format: double
+    HueRelationship:
+      type: object
+      required:
+      - from
+      - to
+      - deltaH
+      - relationship
+      properties:
+        deltaH:
+          type: number
+          format: double
+        from:
+          type: integer
+          minimum: 0
+        relationship:
+          type: string
+        to:
+          type: integer
+          minimum: 0
+    HueSpread:
+      type: object
+      required:
+      - min
+      - max
+      - span
+      properties:
+        max:
+          type: number
+          format: double
+        min:
+          type: number
+          format: double
+        span:
+          type: number
+          format: double
+    LightnessRange:
+      type: object
+      required:
+      - min
+      - max
+      - span
+      properties:
+        max:
+          type: number
+          format: double
+        min:
+          type: number
+          format: double
+        span:
+          type: number
+          format: double
+    LockRequest:
+      type: object
+      required:
+      - colors
+      properties:
+        colors:
+          type: array
+          items:
+            type:
+            - string
+            - 'null'
+        harmony:
+          type:
+          - string
+          - 'null'
+        maxIterations:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+        minScore:
+          type:
+          - number
+          - 'null'
+          format: double
+        seed:
+          type:
+          - string
+          - 'null'
+    MatricesSource:
+      type: object
+      required:
+      - dichromacy
+      - anomalous
+      - achromatic
+      properties:
+        achromatic:
+          type: string
+        anomalous:
+          type: string
+        dichromacy:
+          type: string
+    OklchNarrative:
+      type: object
+      required:
+      - lightnessRange
+      - chromaRange
+      - hueSpread
+      properties:
+        chromaRange:
+          $ref: '#/components/schemas/ChromaRange'
+        hueSpread:
+          $ref: '#/components/schemas/HueSpread'
+        lightnessRange:
+          $ref: '#/components/schemas/LightnessRange'
+    OklchValue:
+      type: object
+      required:
+      - l
+      - c
+      - h
+      properties:
+        c:
+          type: number
+          format: double
+        h:
+          type: number
+          format: double
+        l:
+          type: number
+          format: double
+    PaletteAnalysisResponse:
+      type: object
+      required:
+      - compositeScore
+      - metrics
+      - contrastMatrix
+      - suggestions
+      properties:
+        compositeScore:
+          type: number
+          format: double
+        contrastMatrix:
+          $ref: '#/components/schemas/ContrastMatrix'
+        metrics:
+          $ref: '#/components/schemas/AnalysisMetrics'
+        suggestions:
+          type: array
+          items:
+            type: string
+    PaletteExplanation:
+      type: object
+      required:
+      - palette
+      - seed
+      - harmonyType
+      - harmonyConfidence
+      - hueRelationships
+      - oklchNarrative
+      - pedagogicalNotes
+      - harmonyReference
+      - templateVersion
+      properties:
+        harmonyConfidence:
+          type: number
+          format: float
+        harmonyReference:
+          type: string
+        harmonyType:
+          type: string
+        hueRelationships:
+          type: array
+          items:
+            $ref: '#/components/schemas/HueRelationship'
+        oklchNarrative:
+          $ref: '#/components/schemas/OklchNarrative'
+        palette:
+          type: array
+          items:
+            type: string
+        pedagogicalNotes:
+          type: array
+          items:
+            type: string
+        seed:
+          type: string
+        templateVersion:
+          type: string
+    PaletteExplanationRequest:
+      type: object
+      required:
+      - palette
+      properties:
+        harmonyType:
+          type:
+          - string
+          - 'null'
+        palette:
+          type: array
+          items:
+            type: string
+        seed:
+          type:
+          - string
+          - 'null'
+    PaletteExportPayload:
+      type: object
+      required:
+      - colors
+      properties:
+        colors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ColorOutput'
+    PaletteWire:
+      type: object
+      description: "Wire projection of `PaletteOutput`. Field layout matches Sprint\
+        \ 5 spec\n§architecture Family 1 diff:\n```json\n{ \"colors\": [...], \"compositeScore\"\
+        : 87, \"metrics\": { ... nine scores ... },\n  \"harmonyType\": \"analogous\"\
+        , \"seed\": null, \"iterations\": 1234 }\n```"
+      required:
+      - colors
+      - compositeScore
+      - metrics
+      - harmonyType
+      - iterations
+      properties:
+        colors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ColorOutput'
+        compositeScore:
+          type: number
+          format: double
+        harmonyType:
+          type: string
+        iterations:
+          type: integer
+          format: int32
+          minimum: 0
+        metrics:
+          $ref: '#/components/schemas/AnalysisMetrics'
+        seed:
+          type:
+          - string
+          - 'null'
+    PrimitiveRamps:
+      type: object
+      required:
+      - primary
+      - secondary
+      - accent
+      - neutral
+      - success
+      - warning
+      - error
+      properties:
+        accent:
+          $ref: '#/components/schemas/Ramp'
+        error:
+          $ref: '#/components/schemas/Ramp'
+        neutral:
+          $ref: '#/components/schemas/Ramp'
+        primary:
+          $ref: '#/components/schemas/Ramp'
+        secondary:
+          $ref: '#/components/schemas/Ramp'
+        success:
+          $ref: '#/components/schemas/Ramp'
+        warning:
+          $ref: '#/components/schemas/Ramp'
+    QualityReport:
+      type: object
+      required:
+      - minScore
+      - perMetric
+      properties:
+        minScore:
+          type: integer
+          format: int32
+          minimum: 0
+        perMetric:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
+            minimum: 0
+          propertyNames:
+            type: string
+    QualityScores:
+      type: object
+      required:
+      - compositeScore
+      - harmony
+      - distinctness
+      - lightnessDistribution
+      - temperatureCoherence
+      - saturationCoherence
+      - gamutSpread
+      - uiUtility
+      - colorBlindSafety
+      - accessibility
+      - iterations
+      properties:
+        accessibility:
+          type: number
+          format: double
+        colorBlindSafety:
+          type: number
+          format: double
+        compositeScore:
+          type: number
+          format: double
+        distinctness:
+          type: number
+          format: double
+        gamutSpread:
+          type: number
+          format: double
+        harmony:
+          type: number
+          format: double
+        iterations:
+          type: integer
+          format: int32
+          minimum: 0
+        lightnessDistribution:
+          type: number
+          format: double
+        saturationCoherence:
+          type: number
+          format: double
+        temperatureCoherence:
+          type: number
+          format: double
+        uiUtility:
+          type: number
+          format: double
+    QuotaBody:
+      type: object
+      required:
+      - usageThisMonth
+      - retryAfterSecondsIfExhausted
+      properties:
+        monthlyQuota:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          minimum: 0
+        remaining:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          minimum: 0
+        retryAfterSecondsIfExhausted:
+          type: integer
+          format: int64
+        usageThisMonth:
+          type: integer
+          format: int64
+          minimum: 0
+    Ramp:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/ColorOutput'
+    Resource_AdminStatsResponse:
+      allOf:
+      - type: object
+        required:
+        - totalRequests
+        - activeKeys
+        - requestsToday
+        properties:
+          activeKeys:
+            type: integer
+            format: int64
+          requestsToday:
+            type: integer
+            format: int64
+          totalRequests:
+            type: integer
+            format: int64
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_ApiKeyWire:
+      allOf:
+      - type: object
+        description: 'Sprint 5 wire projection: omits `id` and `createdAt` (they become
+          the
+
+          envelope''s top-level `id`/`createdAt` via `Resource<ApiKeyWire>`).'
+        required:
+        - name
+        - role
+        - requestCount
+        properties:
+          key:
+            type:
+            - string
+            - 'null'
+          lastUsedAt:
+            type:
+            - string
+            - 'null'
+          name:
+            type: string
+          requestCount:
+            type: integer
+            format: int64
+          role:
+            type: string
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_BlindnessResponse:
+      allOf:
+      - type: object
+        required:
+        - original
+        - protanopia
+        - deuteranopia
+        - tritanopia
+        - achromatopsia
+        properties:
+          achromatopsia:
+            type: string
+          deuteranopia:
+            type: string
+          original:
+            type: string
+          protanopia:
+            type: string
+          tritanopia:
+            type: string
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_CodeExportResponse:
+      allOf:
+      - type: object
+        required:
+        - format
+        - code
+        - filename
+        - pasteInto
+        - targetDocs
+        - targetVersion
+        - notes
+        properties:
+          code:
+            type: string
+          filename:
+            type: string
+          format:
+            type: string
+          notes:
+            type: string
+          pasteInto:
+            type: string
+          seed:
+            type:
+            - string
+            - 'null'
+          targetDocs:
+            type: string
+          targetVersion:
+            type: string
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_ColorInfoResponse:
+      allOf:
+      - type: object
+        required:
+        - hex
+        - rgb
+        - hsl
+        - oklch
+        - cmyk
+        - name
+        - luminance
+        - complementary
+        - analogous
+        properties:
+          analogous:
+            type: array
+            items:
+              type: string
+          cmyk:
+            $ref: '#/components/schemas/CmykValue'
+          complementary:
+            type: string
+          hex:
+            type: string
+          hsl:
+            $ref: '#/components/schemas/HslValue'
+          luminance:
+            type: number
+            format: double
+          name:
+            type: string
+          oklch:
+            $ref: '#/components/schemas/OklchValue'
+          rgb:
+            $ref: '#/components/schemas/RgbValue'
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_ColorListWire:
+      allOf:
+      - type: object
+        description: 'Wire projection for `palette/adjust`, `palette/blend`, `color/shades`:
+
+          list of colors returned under `colorList` object.'
+        required:
+        - colors
+        properties:
+          colors:
+            type: array
+            items:
+              $ref: '#/components/schemas/ColorOutput'
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_ContrastMatrixResponse:
+      allOf:
+      - type: object
+        required:
+        - palette
+        - matrix
+        - matricesSource
+        properties:
+          colorblind:
+            oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/ColorblindSimulation'
+          matricesSource:
+            $ref: '#/components/schemas/MatricesSource'
+          matrix:
+            type: array
+            items:
+              $ref: '#/components/schemas/ContrastMatrixEntry'
+          palette:
+            type: array
+            items:
+              type: string
+          seed:
+            type:
+            - string
+            - 'null'
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_ContrastResponse:
+      allOf:
+      - type: object
+        required:
+        - ratio
+        - ratioString
+        - aa
+        - aaa
+        properties:
+          aa:
+            $ref: '#/components/schemas/WcagLevel'
+          aaa:
+            $ref: '#/components/schemas/WcagLevel'
+          ratio:
+            type: number
+            format: double
+          ratioString:
+            type: string
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_DeleteBody:
+      allOf:
+      - type: object
+        required:
+        - deleted
+        - firebaseUid
+        - keysDeleted
+        - firestoreDeleted
+        properties:
+          deleted:
+            type: boolean
+          firebaseUid:
+            type: string
+          firestoreDeleted:
+            type: boolean
+          keysDeleted:
+            type: integer
+            minimum: 0
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_DesignTokensBody:
+      allOf:
+      - type: object
+        required:
+        - tokens
+        - format
+        properties:
+          format:
+            type: string
+          tokens:
+            description: Raw DTCG (or legacy) token tree.
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_ExchangeBody:
+      allOf:
+      - type: object
+        required:
+        - apiKey
+        - keyPrefix
+        - tier
+        - tierSource
+        - firebaseUid
+        - firstLogin
+        properties:
+          apiKey:
+            type: string
+          email:
+            type:
+            - string
+            - 'null'
+          firebaseUid:
+            type: string
+          firstLogin:
+            type: boolean
+          keyPrefix:
+            type: string
+          monthlyQuota:
+            type:
+            - integer
+            - 'null'
+            format: int64
+            minimum: 0
+          tier:
+            type: string
+          tierSource:
+            type: string
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_ExportResponse:
+      allOf:
+      - type: object
+        required:
+        - code
+        properties:
+          code:
+            type: string
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_FigmaVariablesBody:
+      allOf:
+      - type: object
+        required:
+        - variables
+        - collectionName
+        properties:
+          collectionName:
+            type: string
+          variables:
+            description: Figma Variables REST payload.
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_HealthResponse:
+      allOf:
+      - type: object
+        required:
+        - status
+        - version
+        - uptime
+        properties:
+          status:
+            type: string
+          uptime:
+            type: integer
+            format: int64
+            minimum: 0
+          version:
+            type: string
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_PaletteAnalysisResponse:
+      allOf:
+      - type: object
+        required:
+        - compositeScore
+        - metrics
+        - contrastMatrix
+        - suggestions
+        properties:
+          compositeScore:
+            type: number
+            format: double
+          contrastMatrix:
+            $ref: '#/components/schemas/ContrastMatrix'
+          metrics:
+            $ref: '#/components/schemas/AnalysisMetrics'
+          suggestions:
+            type: array
+            items:
+              type: string
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_PaletteExplanation:
+      allOf:
+      - type: object
+        required:
+        - palette
+        - seed
+        - harmonyType
+        - harmonyConfidence
+        - hueRelationships
+        - oklchNarrative
+        - pedagogicalNotes
+        - harmonyReference
+        - templateVersion
+        properties:
+          harmonyConfidence:
+            type: number
+            format: float
+          harmonyReference:
+            type: string
+          harmonyType:
+            type: string
+          hueRelationships:
+            type: array
+            items:
+              $ref: '#/components/schemas/HueRelationship'
+          oklchNarrative:
+            $ref: '#/components/schemas/OklchNarrative'
+          palette:
+            type: array
+            items:
+              type: string
+          pedagogicalNotes:
+            type: array
+            items:
+              type: string
+          seed:
+            type: string
+          templateVersion:
+            type: string
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_PaletteWire:
+      allOf:
+      - type: object
+        description: "Wire projection of `PaletteOutput`. Field layout matches Sprint\
+          \ 5 spec\n§architecture Family 1 diff:\n```json\n{ \"colors\": [...], \"\
+          compositeScore\": 87, \"metrics\": { ... nine scores ... },\n  \"harmonyType\"\
+          : \"analogous\", \"seed\": null, \"iterations\": 1234 }\n```"
+        required:
+        - colors
+        - compositeScore
+        - metrics
+        - harmonyType
+        - iterations
+        properties:
+          colors:
+            type: array
+            items:
+              $ref: '#/components/schemas/ColorOutput'
+          compositeScore:
+            type: number
+            format: double
+          harmonyType:
+            type: string
+          iterations:
+            type: integer
+            format: int32
+            minimum: 0
+          metrics:
+            $ref: '#/components/schemas/AnalysisMetrics'
+          seed:
+            type:
+            - string
+            - 'null'
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_QuotaBody:
+      allOf:
+      - type: object
+        required:
+        - usageThisMonth
+        - retryAfterSecondsIfExhausted
+        properties:
+          monthlyQuota:
+            type:
+            - integer
+            - 'null'
+            format: int64
+            minimum: 0
+          remaining:
+            type:
+            - integer
+            - 'null'
+            format: int64
+            minimum: 0
+          retryAfterSecondsIfExhausted:
+            type: integer
+            format: int64
+          usageThisMonth:
+            type: integer
+            format: int64
+            minimum: 0
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_RotateBody:
+      allOf:
+      - type: object
+        required:
+        - apiKey
+        - keyPrefix
+        - rotatedAt
+        properties:
+          apiKey:
+            type: string
+          keyPrefix:
+            type: string
+          rotatedAt:
+            type: string
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_SetTierBody:
+      allOf:
+      - type: object
+        required:
+        - firebaseUid
+        - tier
+        - tierSource
+        - firestoreSynced
+        properties:
+          expiresAt:
+            type:
+            - string
+            - 'null'
+          firebaseUid:
+            type: string
+          firestoreSynced:
+            type: boolean
+          reason:
+            type:
+            - string
+            - 'null'
+          tier:
+            type: string
+          tierSource:
+            type: string
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_Theme:
+      allOf:
+      - type: object
+        required:
+        - mode
+        - primaryInput
+        - semantic
+        - quality
+        - wcag
+        - warnings
+        - framework
+        - generatedAt
+        properties:
+          extendedSemantic:
+            oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/SemanticBundle'
+              description: 'Sprint 6: 28-slot shadcn-compatible semantic bundle (present
+                only when
+
+                `semanticTokens: true` was requested). Kept as an additive extension
+                so
+
+                existing v1-v5 clients see no shape change.'
+          framework:
+            $ref: '#/components/schemas/Framework'
+          generatedAt:
+            type: string
+          mode:
+            $ref: '#/components/schemas/ThemeMode'
+          primaryInput:
+            $ref: '#/components/schemas/ColorOutput'
+          primitive:
+            oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/PrimitiveRamps'
+          quality:
+            $ref: '#/components/schemas/QualityReport'
+          seed:
+            type:
+            - string
+            - 'null'
+            description: 'Sprint 6: echoed seed (or None if caller did not provide
+              one).'
+          semantic:
+            $ref: '#/components/schemas/SemanticSet'
+          slotSource:
+            type:
+            - string
+            - 'null'
+            description: 'Sprint 6: pinned shadcn template source (mirrors extendedSemantic.slotSource).'
+          warnings:
+            type: array
+            items:
+              type: string
+          wcag:
+            $ref: '#/components/schemas/WcagReport'
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    Resource_UserBody:
+      allOf:
+      - type: object
+        required:
+        - tier
+        - tierSource
+        - keyPrefix
+        - keyCreatedAt
+        properties:
+          displayName:
+            type:
+            - string
+            - 'null'
+          email:
+            type:
+            - string
+            - 'null'
+          firebaseUid:
+            type:
+            - string
+            - 'null'
+          githubLogin:
+            type:
+            - string
+            - 'null'
+          keyCreatedAt:
+            type: string
+          keyPrefix:
+            type: string
+          lastUsedAt:
+            type:
+            - string
+            - 'null'
+          monthlyQuota:
+            type:
+            - integer
+            - 'null'
+            format: int64
+            minimum: 0
+          tier:
+            type: string
+          tierExpiresAt:
+            type:
+            - string
+            - 'null'
+          tierSource:
+            type: string
+          tierVerifiedAt:
+            type:
+            - string
+            - 'null'
+          usageThisMonth:
+            type:
+            - integer
+            - 'null'
+            format: int64
+            minimum: 0
+      - type: object
+        required:
+        - object
+        - id
+        - createdAt
+        properties:
+          createdAt:
+            type: string
+            description: ISO 8601 UTC timestamp.
+          id:
+            type: string
+            description: Stable identifier (persistent) or correlation ID (ephemeral).
+          object:
+            type: string
+            description: Resource type discriminator (e.g. "palette", "color", "user").
+      description: Single-resource envelope.
+    RgbValue:
+      type: object
+      required:
+      - r
+      - g
+      - b
+      properties:
+        b:
+          type: integer
+          format: int32
+          minimum: 0
+        g:
+          type: integer
+          format: int32
+          minimum: 0
+        r:
+          type: integer
+          format: int32
+          minimum: 0
+    RotateBody:
+      type: object
+      required:
+      - apiKey
+      - keyPrefix
+      - rotatedAt
+      properties:
+        apiKey:
+          type: string
+        keyPrefix:
+          type: string
+        rotatedAt:
+          type: string
+    SemanticBundle:
+      type: object
+      required:
+      - slotSource
+      properties:
+        dark:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/SemanticTokenSet'
+        light:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/SemanticTokenSet'
+        slotSource:
+          type: string
+    SemanticColors:
+      type: object
+      required:
+      - background
+      - surface
+      - text
+      - textMuted
+      - border
+      - primary
+      - primaryHover
+      - primaryActive
+      - onPrimary
+      - secondary
+      - onSecondary
+      - accent
+      - onAccent
+      - success
+      - onSuccess
+      - warning
+      - onWarning
+      - error
+      - onError
+      properties:
+        accent:
+          $ref: '#/components/schemas/ColorOutput'
+        background:
+          $ref: '#/components/schemas/ColorOutput'
+        border:
+          $ref: '#/components/schemas/ColorOutput'
+        error:
+          $ref: '#/components/schemas/ColorOutput'
+        onAccent:
+          $ref: '#/components/schemas/ColorOutput'
+        onError:
+          $ref: '#/components/schemas/ColorOutput'
+        onPrimary:
+          $ref: '#/components/schemas/ColorOutput'
+        onSecondary:
+          $ref: '#/components/schemas/ColorOutput'
+        onSuccess:
+          $ref: '#/components/schemas/ColorOutput'
+        onWarning:
+          $ref: '#/components/schemas/ColorOutput'
+        primary:
+          $ref: '#/components/schemas/ColorOutput'
+        primaryActive:
+          $ref: '#/components/schemas/ColorOutput'
+        primaryHover:
+          $ref: '#/components/schemas/ColorOutput'
+        secondary:
+          $ref: '#/components/schemas/ColorOutput'
+        success:
+          $ref: '#/components/schemas/ColorOutput'
+        surface:
+          $ref: '#/components/schemas/ColorOutput'
+        text:
+          $ref: '#/components/schemas/ColorOutput'
+        textMuted:
+          $ref: '#/components/schemas/ColorOutput'
+        warning:
+          $ref: '#/components/schemas/ColorOutput'
+    SemanticSet:
+      type: object
+      properties:
+        dark:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/SemanticColors'
+        light:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/SemanticColors'
+    SemanticSlot:
+      type: object
+      description: One semantic slot = hex + css-module-level-4 oklch string.
+      required:
+      - hex
+      - oklch
+      properties:
+        hex:
+          type: string
+        oklch:
+          type: string
+          description: CSS Color Module Level 4 syntax, e.g. `oklch(0.52 0.18 265.1)`.
+    SemanticTokenSet:
+      type: object
+      required:
+      - background
+      - foreground
+      - card
+      - cardForeground
+      - popover
+      - popoverForeground
+      - primary
+      - primaryForeground
+      - secondary
+      - secondaryForeground
+      - muted
+      - mutedForeground
+      - accent
+      - accentForeground
+      - destructive
+      - destructiveForeground
+      - border
+      - input
+      - ring
+      - success
+      - successForeground
+      - warning
+      - warningForeground
+      - chart1
+      - chart2
+      - chart3
+      - chart4
+      - chart5
+      properties:
+        accent:
+          $ref: '#/components/schemas/SemanticSlot'
+        accentForeground:
+          $ref: '#/components/schemas/SemanticSlot'
+        background:
+          $ref: '#/components/schemas/SemanticSlot'
+        border:
+          $ref: '#/components/schemas/SemanticSlot'
+        card:
+          $ref: '#/components/schemas/SemanticSlot'
+        cardForeground:
+          $ref: '#/components/schemas/SemanticSlot'
+        chart1:
+          $ref: '#/components/schemas/SemanticSlot'
+        chart2:
+          $ref: '#/components/schemas/SemanticSlot'
+        chart3:
+          $ref: '#/components/schemas/SemanticSlot'
+        chart4:
+          $ref: '#/components/schemas/SemanticSlot'
+        chart5:
+          $ref: '#/components/schemas/SemanticSlot'
+        destructive:
+          $ref: '#/components/schemas/SemanticSlot'
+        destructiveForeground:
+          $ref: '#/components/schemas/SemanticSlot'
+        foreground:
+          $ref: '#/components/schemas/SemanticSlot'
+        input:
+          $ref: '#/components/schemas/SemanticSlot'
+        muted:
+          $ref: '#/components/schemas/SemanticSlot'
+        mutedForeground:
+          $ref: '#/components/schemas/SemanticSlot'
+        popover:
+          $ref: '#/components/schemas/SemanticSlot'
+        popoverForeground:
+          $ref: '#/components/schemas/SemanticSlot'
+        primary:
+          $ref: '#/components/schemas/SemanticSlot'
+        primaryForeground:
+          $ref: '#/components/schemas/SemanticSlot'
+        ring:
+          $ref: '#/components/schemas/SemanticSlot'
+        secondary:
+          $ref: '#/components/schemas/SemanticSlot'
+        secondaryForeground:
+          $ref: '#/components/schemas/SemanticSlot'
+        success:
+          $ref: '#/components/schemas/SemanticSlot'
+          description: Sprint 6 extension beyond stock shadcn.
+        successForeground:
+          $ref: '#/components/schemas/SemanticSlot'
+        warning:
+          $ref: '#/components/schemas/SemanticSlot'
+        warningForeground:
+          $ref: '#/components/schemas/SemanticSlot'
+    SetTierBody:
+      type: object
+      required:
+      - firebaseUid
+      - tier
+      - tierSource
+      - firestoreSynced
+      properties:
+        expiresAt:
+          type:
+          - string
+          - 'null'
+        firebaseUid:
+          type: string
+        firestoreSynced:
+          type: boolean
+        reason:
+          type:
+          - string
+          - 'null'
+        tier:
+          type: string
+        tierSource:
+          type: string
+    SetTierRequest:
+      type: object
+      required:
+      - tier
+      properties:
+        expiresAt:
+          type:
+          - string
+          - 'null'
+        reason:
+          type:
+          - string
+          - 'null'
+        tier:
+          type: string
+    ShadesRequest:
+      type: object
+      required:
+      - color
+      properties:
+        color:
+          type: string
+        count:
+          type:
+          - integer
+          - 'null'
+          format: int32
+          minimum: 0
+        range:
+          type:
+          - array
+          - 'null'
+          items:
+            type: number
+            format: double
+    SubError:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        param:
+          type:
+          - string
+          - 'null'
+    Theme:
+      type: object
+      required:
+      - mode
+      - primaryInput
+      - semantic
+      - quality
+      - wcag
+      - warnings
+      - framework
+      - generatedAt
+      properties:
+        extendedSemantic:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/SemanticBundle'
+            description: 'Sprint 6: 28-slot shadcn-compatible semantic bundle (present
+              only when
+
+              `semanticTokens: true` was requested). Kept as an additive extension
+              so
+
+              existing v1-v5 clients see no shape change.'
+        framework:
+          $ref: '#/components/schemas/Framework'
+        generatedAt:
+          type: string
+        mode:
+          $ref: '#/components/schemas/ThemeMode'
+        primaryInput:
+          $ref: '#/components/schemas/ColorOutput'
+        primitive:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/PrimitiveRamps'
+        quality:
+          $ref: '#/components/schemas/QualityReport'
+        seed:
+          type:
+          - string
+          - 'null'
+          description: 'Sprint 6: echoed seed (or None if caller did not provide one).'
+        semantic:
+          $ref: '#/components/schemas/SemanticSet'
+        slotSource:
+          type:
+          - string
+          - 'null'
+          description: 'Sprint 6: pinned shadcn template source (mirrors extendedSemantic.slotSource).'
+        warnings:
+          type: array
+          items:
+            type: string
+        wcag:
+          $ref: '#/components/schemas/WcagReport'
+    ThemeMode:
+      type: string
+      enum:
+      - light
+      - dark
+      - both
+    ThemeOptions:
+      type: object
+      properties:
+        includePrimitiveRamps:
+          type:
+          - boolean
+          - 'null'
+        wcagTarget:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/WcagTarget'
+    ThemeRequest:
+      type: object
+      required:
+      - primary
+      - mode
+      properties:
+        framework:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/Framework'
+        mode:
+          $ref: '#/components/schemas/ThemeMode'
+        options:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/ThemeOptions'
+        primary:
+          type: string
+        seed:
+          type:
+          - string
+          - 'null'
+          description: 'Sprint 6 Pillar 6: 13-char Crockford Base32 seed for deterministic
+            output.'
+        semanticTokens:
+          type:
+          - boolean
+          - 'null'
+          description: 'Sprint 6 Pillar 1: when true, response includes a 28-slot
+            shadcn-compatible
+
+            semantic token bundle in `extendedSemantic`.'
+    TokenFormat:
+      type: string
+      enum:
+      - dtcg
+      - legacy
+    UserBody:
+      type: object
+      required:
+      - tier
+      - tierSource
+      - keyPrefix
+      - keyCreatedAt
+      properties:
+        displayName:
+          type:
+          - string
+          - 'null'
+        email:
+          type:
+          - string
+          - 'null'
+        firebaseUid:
+          type:
+          - string
+          - 'null'
+        githubLogin:
+          type:
+          - string
+          - 'null'
+        keyCreatedAt:
+          type: string
+        keyPrefix:
+          type: string
+        lastUsedAt:
+          type:
+          - string
+          - 'null'
+        monthlyQuota:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          minimum: 0
+        tier:
+          type: string
+        tierExpiresAt:
+          type:
+          - string
+          - 'null'
+        tierSource:
+          type: string
+        tierVerifiedAt:
+          type:
+          - string
+          - 'null'
+        usageThisMonth:
+          type:
+          - integer
+          - 'null'
+          format: int64
+          minimum: 0
+    WcagLevel:
+      type: object
+      required:
+      - normalText
+      - largeText
+      properties:
+        largeText:
+          type: boolean
+        normalText:
+          type: boolean
+    WcagReport:
+      type: object
+      required:
+      - enforced
+      - target
+      - pairsChecked
+      - pairsAdjusted
+      - adjustedPairs
+      properties:
+        adjustedPairs:
+          type: array
+          items:
+            type: string
+        enforced:
+          type: boolean
+        pairsAdjusted:
+          type: integer
+          format: int32
+          minimum: 0
+        pairsChecked:
+          type: integer
+          format: int32
+          minimum: 0
+        target:
+          $ref: '#/components/schemas/WcagTarget'
+    WcagTarget:
+      type: string
+      enum:
+      - AA
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+tags:
+- name: palette
+  description: Palette generation
+- name: color
+  description: Color info + blindness simulation
+- name: analysis
+  description: Palette analysis + contrast
+- name: export
+  description: CSS / SCSS / Tailwind / design tokens / Figma variables
+- name: theme
+  description: Theme bundle generation
+- name: auth
+  description: Firebase ID token exchange
+- name: user
+  description: Authenticated user self-service
+- name: admin
+  description: 'Admin: keys, stats, tier management'
+- name: health
+  description: Service health
+- name: docs
+  description: API documentation

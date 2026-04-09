@@ -1,0 +1,40 @@
+{
+  "state": "ready",
+  "source": "agentic-conglomerate",
+  "project_id": "color-palette-api",
+  "project_name": "color-palette-api",
+  "created_at": "2026-04-09T00:55:00Z",
+  "tier": "T1",
+  "cost_summary": {
+    "backend_spent_usd": 0.0,
+    "backend_tier_limit_usd": 0.0,
+    "note": "Self-hosted Rust on Railway hobby tier; no per-call LLM cost."
+  },
+  "live_endpoint": "https://color-palette-api-production-a68b.up.railway.app",
+  "test_credentials_ref": "COLOR_PALETTE_API_DEV_KEY",
+  "callback_dir": "frontend-callback-in/",
+  "version": "1.5.0",
+  "backend_guard_verdict": "PASS",
+  "backend_guard_loop_count": 1,
+  "backend_git_commit": "29e4522",
+  "extras": {
+    "sprint": 6,
+    "design_direction": "brutalist-code-editor",
+    "target_audience": "developers-and-students",
+    "anti_target": "coolors-designer-aesthetic",
+    "authoritative_frontend_handoff_doc": "docs/frontend-handoff.md",
+    "pillars_delivered": 6,
+    "new_endpoints": [
+      "POST /api/v1/export/code",
+      "POST /api/v1/analyze/contrast-matrix",
+      "POST /api/v1/analyze/explain"
+    ],
+    "extended_endpoints": [
+      "POST /api/v1/theme/generate (semanticTokens + seed)"
+    ],
+    "shadcn_pin": "shadcn-ui/ui@d0c86c4",
+    "frontend_design_rules": "see /c/Users/sylio/CLAUDE.md Frontend Design Rules (Global)"
+  },
+  "author": "Agentic Orchestrator",
+  "timestamp": "2026-04-09T00:57:33Z"
+}
