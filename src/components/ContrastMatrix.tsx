@@ -89,38 +89,59 @@ export function ContrastMatrix() {
 
       {state === 'default' && matrix && (
         <div className="overflow-auto flex-1">
+          {cbMode !== 'none' && (
+            <div
+              className="font-mono text-xs text-fg-tertiary mb-1"
+              data-testid="colorblind-caption"
+            >
+              viewing as: {cbMode}
+            </div>
+          )}
           <table className="border-collapse font-mono text-xs">
             <thead>
               <tr>
                 <th className="p-1 text-fg-tertiary" scope="col">
                   fg \\ bg
                 </th>
-                {matrix.palette.map((hex, i) => (
-                  <th
-                    key={`h-${i}`}
-                    scope="col"
-                    className="p-1 text-fg-tertiary"
-                    style={{ minWidth: 48 }}
-                  >
-                    <div
-                      role="img"
-                      className="w-8 h-3 border border-border-base inline-block"
-                      style={{ backgroundColor: hex }}
-                      aria-label={hex}
-                    />
-                  </th>
-                ))}
+                {matrix.palette.map((hex, i) => {
+                  const displayHex =
+                    cbMode === 'none'
+                      ? hex
+                      : (matrix.colorblind?.[cbMode]?.[i] ?? hex);
+                  return (
+                    <th
+                      key={`h-${i}`}
+                      scope="col"
+                      className="p-1 text-fg-tertiary"
+                      style={{ minWidth: 48 }}
+                    >
+                      <div
+                        role="img"
+                        className="w-8 h-3 border border-border-base inline-block"
+                        style={{ backgroundColor: displayHex }}
+                        aria-label={displayHex}
+                        data-cb-mode={cbMode}
+                      />
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {matrix.palette.map((fgHex, fi) => (
+              {matrix.palette.map((fgHex, fi) => {
+                const displayFgHex =
+                  cbMode === 'none'
+                    ? fgHex
+                    : (matrix.colorblind?.[cbMode]?.[fi] ?? fgHex);
+                return (
                 <tr key={`r-${fi}`}>
                   <th scope="row" className="p-1 text-left">
                     <div
                       role="img"
                       className="w-8 h-3 border border-border-base inline-block"
-                      style={{ backgroundColor: fgHex }}
-                      aria-label={fgHex}
+                      style={{ backgroundColor: displayFgHex }}
+                      aria-label={displayFgHex}
+                      data-cb-mode={cbMode}
                     />
                   </th>
                   {matrix.palette.map((_, bi) => {
@@ -163,7 +184,8 @@ export function ContrastMatrix() {
                     );
                   })}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
