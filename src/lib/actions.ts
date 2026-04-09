@@ -76,6 +76,15 @@ export async function regeneratePalette(seed?: string) {
   // fresh session will derive the identical primary and hit the same backend
   // branch, producing the byte-identical palette required by PRD Tier 1 #6.
   const requestPrimary = seedToPrimary(requestSeed);
+  // FB-011 (Direct Fix, Loop 7+) — Preserve locked colors through regenerate.
+  // Lock state was wired into the store at Loop 1 but `setPalette` overwrote
+  // every color unconditionally, so the `l` toggle had no effect on the user's
+  // visible output. Now we capture the previous palette + locked indices BEFORE
+  // the API call and stitch the locked colors back in afterwards. URL/seed
+  // round-trip is unaffected because the seed → primary → backend chain is
+  // unchanged; only the post-response merge step is added.
+  const prevColors = store.palette?.colors;
+  const lockedFlags = store.locked;
   store.setPaletteLoading();
   try {
     const pal = await api.generateTheme({
@@ -84,6 +93,12 @@ export async function regeneratePalette(seed?: string) {
       semanticTokens: true,
       seed: requestSeed,
     });
+    // Stitch locked colors back into the new palette at their original indices.
+    if (prevColors && lockedFlags.some(Boolean)) {
+      pal.colors = pal.colors.map((c, i) =>
+        lockedFlags[i] && prevColors[i] ? prevColors[i] : c,
+      );
+    }
     store.setPalette(pal);
     // Prefer the backend-returned seed (authoritative); fall back to the
     // request seed (always defined). Guaranteed non-null.
@@ -91,7 +106,8 @@ export async function regeneratePalette(seed?: string) {
     if (nextSeed !== store.seed) {
       store.setSeed(nextSeed);
     }
-    // Fire and forget the 2 analysis calls.
+    // Fire and forget the 2 analysis calls — use the merged hex list so the
+    // contrast matrix and explanation reflect what the user actually sees.
     const hexes = pal.colors.map((c) => c.hex);
     void refreshContrastMatrix(hexes);
     void refreshExplanation(hexes, nextSeed);
