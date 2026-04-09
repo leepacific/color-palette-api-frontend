@@ -3,12 +3,219 @@
 **Author**: Frontend Guard QA Director
 **Date (Loop 1)**: 2026-04-09
 **Date (Loop 2)**: 2026-04-09
+**Date (Loop 4)**: 2026-04-09
 **Judgment (Loop 1)**: FAIL
-**Judgment (Loop 2)**: **FAIL** — FR-1/2/3 resolved, new FR-4 CRITICAL
+**Judgment (Loop 2)**: FAIL — FR-1/2/3 resolved, new FR-4 CRITICAL
+**Judgment (Loop 3)**: CONDITIONAL PASS — FR-4 resolved, CB-002 blocker
+**Judgment (Loop 4)**: **FAIL** — FR-6 resolved, but axe-core scan (run for the first time in Loop 4) surfaced 4 pre-existing WCAG violations. New FR-7/8/9/10.
 
 ---
 
-## Loop 2 Verdict (2026-04-09)
+## Loop 4 Verdict (2026-04-09)
+
+| ID | Severity | Loop 4 Status | Notes |
+|----|----------|---------------|-------|
+| FR-6 | CRITICAL | **RESOLVED** | Test selector retargeted; `flow-a-live.spec.ts` 2/2 PASS against LIVE Railway independently re-run; build identical to 0.1.2 (64.68 kB gzipped); 0 src/ changes |
+| **FR-7** | **SERIOUS (new)** | **OPEN** | **nested-interactive** WCAG violation — `ColorSwatch.tsx` lock-toggle `<button>` nested inside main swatch `<button>`. Axe-core reports 5 nodes. Pre-existing from Loop 1. |
+| **FR-8** | **SERIOUS (new)** | **OPEN** | **color-contrast** WCAG AA violation — `--fg-tertiary: #6b7280` on `--bg-base: #14161b` = 3.74:1, below AA 4.5:1. Axe-core reports 44 nodes. Pre-existing from Loop 1. Contradicts Lab §1 and self-test §1 "WCAG AA self-compliance" claim. |
+| **FR-9** | **SERIOUS (new)** | **OPEN** | **aria-prohibited-attr** WCAG violation — `ContrastMatrix.tsx:108,121` put `aria-label={hex}` on `<div>` without a valid role. Axe-core reports 10 nodes. Pre-existing from Loop 1. |
+| **FR-10** | **SERIOUS (new)** | **OPEN** | **scrollable-region-focusable** WCAG violation — `JsonSidebar.tsx` `<aside>` is scrollable but not keyboard-focusable. Axe reports 1 node. Pre-existing from Loop 1. |
+| FR-11 | MODERATE (new) | **OPEN** | **heading-order** — h3 present without a preceding h2. Axe reports 1 node. Pre-existing. Accepted as LOW/deferrable if Loop 5 addresses FR-7..10. |
+
+### Why Loop 4 FAILs despite a clean Loop 4 FR-6 fix
+
+The FR-6 fix itself is exemplary: test-only change, zero src/ modifications, build byte-identical to 0.1.2 (64.68 kB gzipped), and 2/2 `flow-a-live.spec.ts` scenarios PASS against the LIVE Railway backend. Works' diagnosis that FR-6 was a Loop 3 test-authoring defect (masked by CB-002 CORS) is correct and validated by independent re-run.
+
+**However**, Guard Loop 4 ran axe-core for the first time in the project's history to adjudicate the button-in-button secondary observation that Works flagged at the end of their Loop 4 fix-report. Instead of a single finding, axe surfaced **four serious WCAG violations** and one moderate, all of which are pre-existing from Loop 1 or Loop 2:
+
+1. `nested-interactive` (the button-in-button Works flagged) — 5 nodes, serious
+2. `color-contrast` — 44 nodes, serious — `#6b7280` / `#14161b` = 3.74:1 < AA 4.5:1
+3. `aria-prohibited-attr` — 10 nodes, serious — ContrastMatrix header swatch divs
+4. `scrollable-region-focusable` — 1 node, serious — JsonSidebar aside
+5. `heading-order` — 1 node, moderate
+
+Of these, FR-7/8/9/10 are **unambiguous WCAG AA violations** on a project whose Lab PRD §7 Tier 1 blocking criteria include WCAG AA compliance and whose Loop 1 self-test explicitly claimed "WCAG AA self-compliance (all text ≥4.5:1)". That claim was factually false, and Guard Loops 1/2/3 missed it because FR-3 Loop 2 accepted "axe-core wiring deferred to Sprint 2". **That acceptance was the miss.** Loop 4 is the first loop with evidence-based a11y scanning, and the right moment to surface and block on these.
+
+These are not Loop 4 regressions — they are **Loop 1 Guard misses** now corrected. Loop 4's stated mission (FR-6 resolution) is complete, but Sprint 1 PASS cannot issue over four unresolved serious WCAG violations on a tool claiming AA compliance.
+
+**Works-CTO authority check**: none of FR-7..10 requires Lab spec amendment. All are implementation-level corrections fully within Works scope. Loop 5 is in-scope.
+
+**FixLoopCount: 4 → 5/7**. Still below escalation cap.
+
+### Regression-clean (Loop 4 did not touch)
+
+- Build: 207.72 kB raw / **64.68 kB gzipped — byte-identical to 0.1.2** (confirms 0 src/ changes)
+- `tests/flow-d.spec.ts` — **5/5 PASS** (independently re-run) — FR-1 Loop 2 intact
+- `tests/theme-bundle-adapter.spec.ts` — **4/4 PASS** (independently re-run against LIVE Railway) — FR-4 Loop 3 intact
+- `tests/flow-a-live.spec.ts` — **2/2 PASS** (independently re-run against LIVE Railway) — FR-6 Loop 4 fix validated
+- Doctrine greps (seamless/empower/etc., Inter-alone, purple-blue gradient, bounce easing): **all 0 matches**
+- 21 keyboard shortcuts, 11 consumer sites, `use-url-sync.ts`, IDE tool-window layout, design tokens (except `--fg-tertiary`): unchanged
+
+---
+
+## FR-7 — nested-interactive (ColorSwatch button-in-button) — SERIOUS / FE-DEFECT
+
+### Axe output
+```
+nested-interactive [serious] — 5 nodes
+help: Interactive controls must not be nested
+target: .min-w-0.focus-visible\:outline-offset-2.relative:nth-child(1..5)
+failureSummary: Element has focusable descendants
+```
+
+### Root cause
+`src/components/ColorSwatch.tsx:27-97`:
+- Line 27: outer `<button type="button">` (main swatch, has `aria-label="color N of 5: hex ..."`, handles swatch focus)
+- Line 84: inner `<button type="button">` (lock toggle, has `aria-label="lock color N"`, handles lock toggle)
+
+HTML5 forbids interactive descendants inside `<button>`. React emits `validateDOMNesting` warning at `console.error` level on every render. Observed in Loop 4 `flow-a-live.spec.ts` console output (captured but excluded from the `fatal` filter). Screen readers cannot reliably announce nested buttons; keyboard focus behavior is undefined.
+
+**Loop 1 Guard miss**: I inspected ColorSwatch in Loop 1 for 4-state coverage and focus rings but did not notice the nesting. A code-review-only Loop 1 verification regime cannot catch DOM-composition violations reliably. This is the Loop 1 Guard Miss entry for missed-defects.md.
+
+### Required fix (one of two approaches)
+
+**Approach A — flatten the main button to a non-interactive container, move click to the hex span**
+- Change outer `<button>` (line 27) to `<div role="group">` with `aria-label` preserved as `aria-labelledby` referencing a visually-hidden label span
+- Move the `onClick={() => setFocusedIndex(index)}` handler to the hex-display span (lines 53-61) as its primary click target (it already has an `onClick` for copy — add the focus-set there)
+- The lock toggle at line 84 remains a `<button>` — a legitimate nested interactive becomes a sibling interactive
+- Add `tabIndex={0}` + keyboard handler on the hex span if swatch-level focus is needed, OR drop swatch-level focus entirely (the 5 swatches already have focusable children: hex, oklch, hsl, and lock — 4 tab stops per swatch)
+
+**Approach B — keep the outer button, move lock toggle out of the button element**
+- Restructure ColorSwatch so the lock `<button>` lives as a sibling of the main `<button>`, both inside a parent `<div>`
+- This is a bigger layout change: the lock chip currently lives in the bottom-info row inside the main button. Approach B moves the info row out of the button.
+- Main swatch `<button>` then wraps only the color tile (top) and hex-display info (middle) — the lock chip row becomes an absolutely-positioned sibling or a flex sibling row after the button
+
+My recommendation: **Approach A**. It preserves visual layout, reduces tab-stop count (currently ~5 per swatch), and aligns with the real interaction model (hex is the primary target, lock is secondary).
+
+### Acceptance
+- `npx axe` scan of `/` shows 0 `nested-interactive` violations
+- `tests/flow-a-live.spec.ts` `button[aria-label*="of 5: hex" i]` count assertion may need retargeting — update to `[aria-label*="of 5: hex" i]` without the `button` tag filter, or to `[role="group"][aria-label*="of 5: hex" i]` if Approach A, or keep as-is if Approach B
+- Flow A + Flow D regression: still 2/2 + 5/5 PASS
+- Lock toggle still works: `tests/flow-d.spec.ts` should remain green; add a new test if lock interaction is not currently covered
+- Focus-visible ring still renders on the primary interactive per Doctrine §1.9 focus requirement
+- React no longer emits `validateDOMNesting` warning (grep console output)
+
+---
+
+## FR-8 — color-contrast AA failure (--fg-tertiary) — SERIOUS / FE-DEFECT
+
+### Axe output
+```
+color-contrast [serious] — 44 nodes
+help: Elements must meet minimum color contrast ratio thresholds
+example: color #6b7280 on #14161b = 3.74 (expected ≥4.5:1)
+```
+
+### Root cause
+`src/styles/tokens.css:17`:
+```css
+--fg-tertiary: #6b7280;
+```
+
+On `--bg-base: #14161b` (and similar dark tokens), 3.74:1 — fails WCAG AA 4.5:1 for normal text. Used by `text-fg-tertiary` class in 13 components (grep hit list: ColorSwatch, PaletteDisplay, JsonSidebar, ContrastMatrix, ExplainPanel, ExportDrawer, ComponentPreview, HelpOverlay, GeneratorPage, TopBar, HelpPage, NotFoundPage, ErrorBoundary).
+
+Light mode (`--fg-tertiary: #9ca3af` at `tokens.css:119`) on light bg needs a separate check — axe was not scanned in light mode in this pass.
+
+**Loop 1 Guard miss** + **self-test false claim**: self-test-report.md §1 explicitly claims "WCAG AA self-compliance (all text ≥4.5:1)". This is factually false. I did not independently verify the claim in Loop 1; I trusted Works' self-report. missed-defects.md entry: "Loop 1 accepted AA compliance claim without contrast-ratio verification tool."
+
+### Required fix
+- Edit `tokens.css:17` — change `--fg-tertiary` from `#6b7280` to a value that hits **≥4.5:1 on `#14161b`**. Candidates:
+  - `#9ca3af` (4.91:1) — matches the light-mode token, keeps tertiary-ish gray feel
+  - `#a1a7b3` (5.25:1) — slightly lighter, safer margin
+- Recompute contrast for `--fg-secondary` (`#9ca3af` currently) against `#14161b` and `#1a1d24` (raised panel) — must also be ≥4.5:1; if not, raise it too
+- Recompute light mode (`tokens.css:119+`) against `--bg-base` light variant — must also be ≥4.5:1
+- Re-run axe: 0 `color-contrast` violations
+- Update `self-test-report.md §1` to replace "all text ≥4.5:1" with actual measured contrast ratios for each fg/bg pairing
+
+### Acceptance
+- Axe scan: 0 `color-contrast` serious violations in both dark and light modes
+- Visual regression: `text-fg-tertiary` is still visually "tertiary" (visibly distinct from secondary) but now passes AA
+- No doctrine regression: the mint-cyan accent, sharp radius, no-gradient stance are untouched
+- Self-test §1 contains actual contrast measurements, not aspirational claims
+
+---
+
+## FR-9 — aria-prohibited-attr (ContrastMatrix header swatches) — SERIOUS / FE-DEFECT
+
+### Axe output
+```
+aria-prohibited-attr [serious] — 10 nodes
+help: Elements must only use permitted ARIA attributes
+target: th[scope="col"]:nth-child(2..N) > .w-8.h-3[aria-label="#RRGGBB"]
+failureSummary: aria-label attribute cannot be used on a div with no valid role attribute.
+```
+
+### Root cause
+`src/components/ContrastMatrix.tsx:108,121`:
+```tsx
+<div ... aria-label={hex}>
+<div ... aria-label={fgHex}>
+```
+
+`aria-label` is prohibited on elements with no implicit or explicit role. The color swatches in the matrix header/axis are decorative `<div>`s.
+
+### Required fix (one of three approaches)
+- **A**: Add `role="img"` to the divs — then `aria-label` becomes valid. Recommended.
+  ```tsx
+  <div role="img" aria-label={`color swatch ${hex}`} ... />
+  ```
+- **B**: Remove `aria-label` entirely and rely on the adjacent text column (`<th>` text content) for screen reader announcement. Simpler but loses explicit hex announcement.
+- **C**: Replace the swatch `<div>` with `<span role="img" aria-label={hex}>` + a background-color — same outcome as A but inline element.
+
+Recommendation: **A** with prefix "color swatch " for clarity (screen readers will say "color swatch pound 0 F 1 7 2 A").
+
+### Acceptance
+- Axe scan: 0 `aria-prohibited-attr` violations
+- Visual: matrix header unchanged
+- Screen reader flow: hovering/focusing the header announces the hex
+
+---
+
+## FR-10 — scrollable-region-focusable (JsonSidebar aside) — SERIOUS / FE-DEFECT
+
+### Axe output
+```
+scrollable-region-focusable [serious] — 1 node
+help: Scrollable region must have keyboard access
+target: .area-left > aside
+failureSummary: Focusable content should be disabled or be removed from the DOM (inverted — aside is scrollable but not focusable)
+```
+
+### Root cause
+`src/components/JsonSidebar.tsx` — the `<aside>` has `overflow: auto` (or `overflow-y: auto`) styling but lacks `tabIndex={0}`. Keyboard-only users cannot scroll the JSON panel.
+
+### Required fix
+Add `tabIndex={0}` to the `<aside>` element in JsonSidebar. One line:
+```tsx
+<aside tabIndex={0} className="... overflow-y-auto ...">
+```
+
+Axe will also be satisfied if the scroll is replaced with explicit keyboard scroll handlers, but `tabIndex={0}` is the smallest correct fix.
+
+### Acceptance
+- Axe scan: 0 `scrollable-region-focusable` violations
+- Keyboard: pressing Tab reaches the JSON aside; arrow keys scroll it; Tab moves on
+- Focus-visible ring renders on the aside when it receives focus (per Doctrine)
+
+---
+
+## FR-11 — heading-order (h3 without preceding h2) — MODERATE / FE-DEFECT (deferrable)
+
+### Axe output
+```
+heading-order [moderate] — 1 node
+target: h3
+failureSummary: Heading order invalid
+```
+
+### Classification
+Moderate (not serious). Accepted as deferrable IF Loop 5 addresses FR-7/8/9/10 cleanly. Fix is either promote the h3 to h2 (if semantically it is a primary section) or demote to a non-heading element (if it is a sub-section label).
+
+### Acceptance
+- Axe scan: 0 `heading-order` violations
+- Semantic document outline remains coherent
+
+---
 
 | ID | Loop 1 Severity | Loop 2 Status | Notes |
 |----|-----------------|---------------|-------|
