@@ -197,3 +197,52 @@ Different colors. Contradicts `docs/frontend-handoff.md §12 line 382` which doc
 
 ### Verdict
 PASS for FR-4 adapter correctness; CONDITIONAL on CB-002 resolution before Step 8.
+
+---
+
+## Loop 5 Update — 2026-04-09 (Contract Validation Lead, Frontend Guard)
+
+### Status: PASS (no contract changes, all Loop 3-4 wins preserved)
+
+Loop 5 is an a11y-cluster fix. **Zero contract / API client / adapter changes.**
+
+### Files I track (regression check)
+
+| File | Last touched | Loop 5 changed? |
+|------|--------------|-----------------|
+| `src/lib/api-client.ts` | Loop 3 (commit 7dfb063) | NO |
+| `src/lib/theme-bundle.ts` | Loop 3 (NEW in Loop 3) | NO |
+| `src/lib/actions.ts` | Loop 2 (commit b41dfcd) | NO |
+| `src/types/api.ts` | Loop 3 | NO |
+| `src/mocks/handlers.ts` | Loop 3 | NO |
+| `src/mocks/stub-data.ts` | Loop 3 | NO |
+| `src/hooks/use-url-sync.ts` | Loop 2 | NO |
+
+Verified via `git log --oneline -1 -- <file>` for each. None shows Loop 5 commit `184d840`.
+
+### Live contract re-verification
+
+`tests/theme-bundle-adapter.spec.ts` (4 scenarios, hits live Railway via Node fetch — bypasses CORS): **4/4 PASS**.
+
+`tests/flow-a-live.spec.ts` (2 scenarios, hits live Railway via Chromium with full CORS preflight): **2/2 PASS**. Captured live evidence:
+- 2× POST /api/v1/theme/generate (mount + FR-1 URL-sync regenerate) — 200 OK
+- 2× POST /api/v1/analyze/contrast-matrix — 200 OK
+- 2× POST /api/v1/analyze/explain — 200 OK
+- Response shape keys: object, id, createdAt, mode, primaryInput, primitive, semantic, quality, wcag, warnings, framework, generatedAt, extendedSemantic, seed, slotSource — matches Loop 3 + Loop 4 capture exactly
+- `themeBundle.primitive` adapter path works end-to-end
+
+### CORS
+
+CB-002 (backend missing `idempotency-key` + `request-id` in CORS allow-headers) was resolved Agentic-side in Loop 4 (FB-007). Loop 5 live smoke confirms preflight succeeds, real headers go through, theme/generate response is consumed by adapter without TypeError. No new CORS issues.
+
+### Idempotency-Key + Request-Id
+
+Verified still emitted in `api-client.ts` request headers. Backend now accepts them via Loop 4 CORS fix.
+
+### Adapter contract surface
+
+`themeBundleToPaletteResource()` maps the live themeBundle's `primaryInput`, `secondary.500`, `accent.500`, `neutral.500`, `primary.700` ramps into a 5-color `PaletteResource`. Determinism for `{primary, seed}` tuples is verified by `theme-bundle-adapter.spec.ts:101` and was the foundation for keeping Flow D (FR-1) byte-identical.
+
+### Verdict
+
+PASS. No contract regressions. Live wire is green. CB-002 stays resolved. CB-003 (`/palette/random?seed=` non-determinism) remains a Sprint 2 backend item — not blocking because Path B adapter sidesteps it.

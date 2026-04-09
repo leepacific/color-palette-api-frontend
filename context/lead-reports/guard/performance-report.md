@@ -125,3 +125,35 @@ Once CB-002 is resolved and the frontend runs against live, every POST will incu
 
 ### Lighthouse still deferred to Sprint 2 hardening
 No change from Loop 2 reasoning.
+
+---
+
+## Loop 5 Update — 2026-04-09 (Performance Lead, Frontend Guard)
+
+### Status: PASS (bundle slightly smaller than Loop 4)
+
+| Metric | Loop 4 (0.1.3) | Loop 5 (0.1.4) | Delta |
+|--------|----------------|----------------|-------|
+| index.css raw | ~43.26 kB | 43.35 kB | +0.09 kB |
+| index.css gzipped | ~19.50 kB | 19.52 kB | +0.02 kB |
+| index.js raw | 209.59 kB | 207.90 kB | **-1.69 kB** |
+| index.js gzipped | 65.71 kB | 64.74 kB | **-0.97 kB** |
+| Tier 2 budget (200 kB gzipped) | 32.9% used | 32.4% used | -0.5pp |
+
+Loop 5 is the *smallest* bundle of the 5 loops. The FR-7 ColorSwatch refactor removed `e.stopPropagation()` calls and the duplicate-keycap absolute positioning code; the FR-8 token edit was 6 characters; FR-9/FR-10/FR-11 are attribute-only changes. Net effect: slightly less JS.
+
+Lighthouse CI remains a Sprint 2 deferral (within Works-CTO authority — bundle is 32% of budget, no headroom concern).
+
+### `inert` attribute browser support
+
+ComponentPreview demo block is marked `inert` + `aria-hidden`. Browser support:
+- Chrome 102+ (May 2022)
+- Safari 15.5+ (May 2022)
+- Firefox 112+ (Apr 2023)
+- Modern Edge: yes
+
+Degraded behavior on old browsers: the block becomes focusable in tab order (no assistive tech impact because `aria-hidden` is independent and still respected). No functional regression.
+
+### Verdict
+
+PASS. Bundle health excellent.

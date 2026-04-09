@@ -1,353 +1,251 @@
-# Frontend Guard QA Director — Pass Report (Sprint 1, Loop 3)
+# Frontend Guard QA Director — FINAL PASS Report (Sprint 1, Loop 5)
 
-**Author**: Frontend Guard QA Director
+**Author**: Frontend Guard QA Director (Frontend-Builder)
 **Date**: 2026-04-09
-**Loop**: 3 re-verification (post-Works `7dfb063`)
-**Verdict**: **CONDITIONAL PASS**
-
-## Verdict explanation
-
-The Loop 3 FR-4 fix (Path B — themeBundle adapter at API client boundary) is **solid**.
-All in-scope frontend code is correct, all regression suites are green, and the
-Loop 1 root cause (MSW ↔ live shape divergence) is now closed at the source.
-
-The PASS is **conditional** for one reason: Loop 3 surfaced a pre-existing
-**backend CORS gap** (`Idempotency-Key` and `Request-Id` not in
-`Access-Control-Allow-Headers`) that prevents *any* browser-based call from the
-frontend to the live Railway backend. The gap is independently confirmed by curl
-preflight (see Phase 2.5 §Issue 1). Adapter correctness is proven via Node-level
-fetch tests that bypass CORS — but no browser-level end-to-end smoke against
-live is possible until the backend allow-headers list is widened.
-
-This is a **backend defect**, not a frontend defect. Per Frontend-Builder
-Hard Rule H5 the frontend cannot patch backend Rust code, so it is filed as
-**Callback Protocol B (CB-002)** in `handoff/frontend-builder-to-agentic/`.
-
-A second backend issue (`/palette/random?seed=` non-determinism) was also
-discovered and is filed as **CB-003** with `docs/frontend-handoff.md §12` cited
-as evidence that seeded responses are documented to be deterministic.
-
-**Step 8 (release approval) MUST wait for CB-002 resolution.** CB-003 is
-non-blocking for Sprint 1 release because the frontend never calls
-`/palette/random` (Path B keeps `/theme/generate` exclusively).
-
-| Sub-verdict | Result |
-|-------------|--------|
-| FR-4 fix correctness | **PASS** |
-| Loop 1 + Loop 2 regression | **PASS** (after one hygiene cleanup, see §Phase 1) |
-| Doctrine regression | **PASS** |
-| Backend issues classification | **2 backend defects filed as CB-002 + CB-003** |
-| Browser → live E2E | **DEFERRED to post-CB-002** |
+**Loop**: 5 — final re-verification (post-Works `184d840`)
+**fixLoopCount**: 5/7
+**Verdict**: **FULL PASS**
+**Outstanding callbacks**: NONE
+**Deferred blockers**: NONE
+**Release approval gate**: OPEN
 
 ---
 
-## Phase 0 — Pre-flight
+## Executive summary
 
-| Check | Result |
-|-------|--------|
-| `handoff/works-to-guard/fix-report.md` §Loop 3 exists | OK |
-| `handoff/works-to-guard/changelog.md` 0.1.2 section | OK |
-| `handoff/works-to-guard/self-test-report.md` §13 | OK |
-| `npm run build` | **PASS** — `dist/assets/index-Ce6RxM63.js 210.20 kB / 65.96 kB gzipped`. 0 TS errors, 0 Vite warnings. Bundle delta vs Loop 2: +0.61 kB gzipped (adapter + types). Well under Tier 2 200 kB budget. |
+Sprint 1 of `color-palette-api` frontend ships. After five Guard loops, all
+fix-request items (FR-1 through FR-11) are resolved and independently verified.
+The most consequential Loop 5 result: **axe-core scan went from 60 serious
+violations (Loop 4 baseline) to 0 serious / 0 critical (Loop 5)** across both
+Tier 1 routes (`/` and `/help`), and a permanent `tests/a11y.spec.ts` gate is
+committed to prevent silent regression.
 
----
-
-## Phase 1 — Loop 1 + Loop 2 regression check
-
-### Doctrine vocabulary blacklist
-```
-Pattern: seamless|empower|revolutioniz|unleash|elevate your|game.chang|next.gen|cutting.edge|state.of.the.art|reimagine|transform your
-Path:    src/
-Result:  No files found  → PASS
-```
-
-### Inter-alone font fallback
-```
-Pattern: font-family.*Inter[^,]
-Path:    src/
-Result:  No files found  → PASS
-```
-Doctrine §1.9 stack (JetBrains Mono primary + IBM Plex Sans secondary) intact.
-
-### Purple-blue cliché gradient
-```
-Pattern: linear-gradient.*purple|gradient.*violet.*blue|from-purple.*to-blue|from-violet.*to-blue
-Path:    src/
-Result:  No files found  → PASS
-```
-
-### cubic-bezier easing curves (must lie inside [0,1] box)
-```
-src/styles/tokens.css:108:  --easing-snap: cubic-bezier(0.2, 0, 0, 1);
-src/styles/tokens.css:109:  --easing-in:   cubic-bezier(0.4, 0, 1, 1);
-```
-Both inside the unit box → PASS. No bouncy/elastic/back curves introduced in Loop 3.
-
-### 21 keyboard shortcuts (Loop 1 PASS criterion)
-`src/hooks/use-keyboard-shortcuts.ts` — **178 lines, untouched in Loop 3**
-(diff against Loop 2 SHA `b41dfcd` is empty for this file).
-
-### FR-1 — `use-url-sync.ts` (Loop 2 PASS criterion)
-**Untouched in Loop 3** — diff against `b41dfcd` empty.
-
-### Flow D Playwright suite (FR-1 regression guard)
-```
-$ npx playwright test tests/flow-d.spec.ts
-Running 5 tests using 1 worker
-  ok 1  ?seed=XXX on mount populates store before first regenerate (543ms)
-  ok 2  pressing r updates URL with a new valid 13-char Base32 seed (818ms)
-  ok 3  ?mode=light on mount applies light mode (420ms)
-  ok 4  invalid seed in URL falls back gracefully (no crash, random seed used) (413ms)
-  ok 5  mode default (dark) is omitted from URL (779ms)
-5 passed (6.6s)
-```
-**5/5 PASS — FR-1 regression CLEAN.**
-
-### Hygiene defect surfaced during regression (Loop 3 self-inflicted)
-
-The first `npx playwright test tests/flow-d.spec.ts` invocation in this
-verification session **failed 2/5** with the same symptom both times:
-"URL seed did not update after regenerate", with `palette { error: api_error,
-requestId: req_local }` visible in the JsonSidebar snapshot.
-
-Diagnostic test with browser console capture revealed the true cause:
-```
-[browser] error Access to fetch at 'https://color-palette-api-production-a68b.up.railway.app/api/v1/theme/generate'
-          from origin 'http://localhost:5173' has been blocked by CORS policy:
-          Request header field idempotency-key is not allowed by
-          Access-Control-Allow-Headers in preflight response.
-[reqfail] https://...theme/generate net::ERR_FAILED
-```
-
-Root cause: `frontend/.env.local` existed with `VITE_USE_MSW=false` even
-though `playwright.config.ts` is the canonical MSW-on config. The file was
-left behind by `scripts/dev-live.mjs` from an earlier Loop 3 live-smoke run.
-`dev-live.mjs` writes `.env.local` to force MSW off and registers an `exit`
-handler to delete it, but on Windows the cleanup is unreliable (process kill
-during a hung Vite dev server, Playwright webServer SIGKILL, etc.). Vite reads
-`.env.local` with higher precedence than `.env`, so the canonical `npm run dev`
-launched by `playwright.config.ts` was unwittingly hitting the live backend
-and crashing on the CORS gap.
-
-**Resolution applied during verification**:
-```
-$ rm frontend/.env.local
-$ npx playwright test tests/flow-d.spec.ts
-... 5 passed (6.6s)
-```
-
-**Classification**: Loop 3 minor FE-DEFECT (hygiene). NOT a code regression
-of FR-1 — the URL sync code is correct. Logged in `guard-to-works/fix-requests.md`
-as FR-5 (LOW, non-blocking) for Sprint 2 hardening; recommended fix is to
-either (a) refuse to start `dev-live` if `.env.local` already exists, (b)
-use `cross-env` instead of file-based env override, or (c) use a different
-flag name so leakage is harmless.
+The five-loop journey is now also captured as a Tier 1 Guard knowledge pattern
+(`04-guard/knowledge/patterns/verification-layer-cascade.md`) so future
+Frontend-Builder sprints run all five verification layers in Loop 1.
 
 ---
 
-## Phase 2 — FR-4 verification (Path B — themeBundle adapter)
+## 5-loop summary
 
-### Adapter source review (`src/lib/theme-bundle.ts`)
+| Loop | Defect surfaced | Fix | Outcome |
+|------|-----------------|-----|---------|
+| 1 | (initial code review) — passed doctrine + curl backend; Flow D unimplemented; MSW handlers diverged from live shape; static a11y self-audit lied | — | FAIL (FR-1, FR-2, FR-3) |
+| 2 | Flow D URL round-trip missing | `use-url-sync.ts` + `tests/flow-d.spec.ts` 5/5 | FAIL on FR-4 (next layer surfaced) |
+| 3 | `/theme/generate` returns `themeBundle`, frontend typed it as `PaletteResource` (MSW divergence) | `theme-bundle.ts` adapter at API boundary; MSW stub fixed; `tests/theme-bundle-adapter.spec.ts` 4/4 | CONDITIONAL PASS pending CB-002 CORS fix |
+| 4 | Backend CORS missing `idempotency-key` (CB-002, fixed Agentic-side); FR-6 phantom test selector (test never executed pre-CORS); FR-7..11 axe-core surfaced 60 serious WCAG violations | Test selector retargeted; first axe-core scan run | FAIL on FR-7..11 a11y cluster |
+| 5 | a11y cluster (nested-interactive, color-contrast, aria-prohibited-attr, scrollable-region-focusable, heading-order) | ColorSwatch Approach B; `--fg-tertiary` slate-400; `role="img"` chips; `tabIndex={0}` scroll wrapper; h3→h2; `inert+aria-hidden` on shadcn slot preview; `tests/a11y.spec.ts` permanent gate | **FULL PASS** |
 
-64 lines. Adapter does exactly what fix-report claims:
-
-```ts
-function pickFiveColors(bundle: ThemeBundleResource): Color[] {
-  const p = bundle.primitive;
-  const fallback = bundle.primaryInput;
-  return [
-    bundle.primaryInput,                       // [0] preserves user input → export contract
-    p.secondary?.['500'] ?? fallback,          // [1] mid-tone sibling
-    p.accent?.['500'] ?? fallback,             // [2] contrast hue
-    p.neutral?.['500'] ?? fallback,            // [3] neutral mid
-    p.primary?.['700'] ?? fallback,            // [4] darker emphasis
-  ];
-}
-```
-- **Index choice**: 500 = mid-tone for secondary/accent/neutral (canonical Tailwind/Material ramp midpoint), 700 = darker emphasis for primary. Reasonable design decision.
-- **Defensive fallback** to `primaryInput` if any ramp step missing — prevents undefined access on every site.
-- `themeBundleToPaletteResource` returns a fully-formed `PaletteResource` including `seed: bundle.seed` (Flow D round-trip), `compositeScore`, derived `metrics`, and a synthetic `harmonyType: 'themeBundle'`.
-
-### Type definitions (`src/types/api.ts`)
-- `ThemeRamp` correctly typed as `Record<'50'|'100'|...|'950', Color>`.
-- `ThemeBundleResource` matches the live shape — independently curl-verified below.
-- `PaletteResource` untouched (consumer types stable).
-
-### api-client wiring (`src/lib/api-client.ts:109-116`)
-```ts
-async generateTheme(req: ThemeGenerateRequest): Promise<PaletteResource> {
-  const bundle = await apiFetch<ThemeBundleResource>('/api/v1/theme/generate', {
-    method: 'POST', body: JSON.stringify(req), idempotent: true,
-  });
-  return themeBundleToPaletteResource(bundle);
-}
-```
-Correct: fetches raw bundle, passes through adapter, returns `PaletteResource`.
-Consumers see no shape change.
-
-### MSW stub sync (`src/mocks/stub-data.ts:106` + `handlers.ts:35`)
-- New `stubThemeBundle()` returns a real `ThemeBundleResource` shape with all 4 ramps (primary, secondary, accent, neutral) populated.
-- `/api/v1/theme/generate` MSW handler now returns `stubThemeBundle()` instead of `stubPalette()`.
-- **Closes the Loop 1 root cause**: MSW-on tests now exercise the same adapter path as production. The Guard Loop 1 miss was caused by MSW returning the wrong shape; that divergence is now eliminated.
-
-### Live shape verification (independent curl)
-```
-$ curl -X POST https://color-palette-api-production-a68b.up.railway.app/api/v1/theme/generate \
-       -H "content-type: application/json" -H "x-api-key: $KEY" \
-       -d '{"primary":"#0F172A","mode":"both","semanticTokens":true,"seed":"94TMTHJ5QEQMW"}'
-{"object":"themeBundle","id":"tb_01KNR8S7F0S17X3M7XKYZBRHY5","createdAt":"2026-04-09T04:42:36...",
- "mode":"both","primaryInput":{"hex":"#0F172A","rgb":{"r":15,"g":23,"b":42},
- "hsl":{"h":222.2,"s":47.4,"l":11.2},"oklch":{"l":0.21,"c":0.04,"h":265.8},"name":"Dark Blue"},
- "primitive":{"primary":{"100":{"hex":"#D6DBE5",...},"200":{...},...,"950":{...}},
-              "secondary":{...},"accent":{...},"neutral":{...},...}, ...}
-```
-
-**Confirmed**: `object='themeBundle'`, `primitive.{primary,secondary,accent,neutral}` all present with full 50-950 ramps, `primaryInput` echoed. Matches `ThemeBundleResource` type 1:1.
-
-### Live adapter test re-run (independent verification, not trusting Works)
-```
-$ npx playwright test tests/theme-bundle-adapter.spec.ts
-Running 4 tests using 1 worker
-  ok 1  live /theme/generate returns themeBundle shape (backend conformance) (289ms)
-  ok 2  adapter flattens live themeBundle to PaletteResource with 5 valid colors (190ms)
-  ok 3  adapter is deterministic for fixed {primary, seed} (Flow D round-trip) (175ms)
-  ok 4  adapter handles stub themeBundle without crashing (8ms)
-4 passed (3.7s)
-```
-**4/4 PASS against live Railway v1.5.0** — independently re-verified by Guard. Test #2 asserts `palette.colors[0].hex === '#7AE4C3'` (user input round-trip), `colors.length === 5`, every color has valid hex/rgb/hsl/oklch, and consumer access patterns don't throw. Test #3 asserts byte-identity across two parallel calls with fixed `{primary, seed}` — Flow D guarantee preserved.
-
-**FR-4 verdict: FIXED.** The adapter is correct, the type matches live, the wiring is at the boundary, and the MSW stub now mirrors live shape (Loop 1 root cause closed).
+5/7 loops used. 2 loops of headroom unused.
 
 ---
 
-## Phase 2.5 — Backend issue classification
+## Loop 5 independent verification evidence
 
-### Issue 1 — Backend CORS allow-headers gap → **CB-002 (Backend Defect)**
-
-**Independent preflight curl**:
+### Phase 0 — Build
 ```
-$ curl -X OPTIONS https://color-palette-api-production-a68b.up.railway.app/api/v1/theme/generate \
-       -H "Origin: http://localhost:5173" \
-       -H "Access-Control-Request-Method: POST" \
-       -H "Access-Control-Request-Headers: content-type,x-api-key,idempotency-key,request-id" \
-       -D - -o /dev/null
-
-HTTP/1.1 200
-access-control-allow-origin: http://localhost:5173
-access-control-allow-headers: content-type,x-api-key,authorization
-access-control-allow-methods: GET,POST,DELETE,OPTIONS
-access-control-max-age: 3600
+$ npm run build
+dist/assets/index-DDe7yx7D.css   43.35 kB │ gzip: 19.52 kB
+dist/assets/index-DgGhzhDg.js   207.90 kB │ gzip: 64.74 kB
+✓ built in 2.33s
 ```
+0 TypeScript errors, 0 warnings. Bundle delta vs Loop 4 (`209.59 kB / 65.71 kB`):
+**-1.69 kB raw / -0.97 kB gzipped** (Loop 5 is actually slightly *smaller* than
+Loop 4 because the FR-7 ColorSwatch refactor removed `e.stopPropagation()` and
+the duplicate-keycap absolute positioning code; the `--fg-tertiary` change was
+a 6-character token edit). Well under Tier 2 200 kB Performance budget.
 
-**Confirmed**: `access-control-allow-headers` does NOT include `idempotency-key`
-or `request-id`. The frontend sends both per the documented API contract
-(`docs/frontend-handoff.md` §"Request-Id + Idempotency-Key"). Browser fetch is
-blocked at preflight; the actual POST never goes out.
-
-**Impact**: Browser-level end-to-end test against live (`tests/flow-a-live.spec.ts`)
-is BLOCKED. Any production browser visit to the deployed frontend will hit the
-same wall on first regenerate.
-
-**Classification**: **BACKEND DEFECT.** Per Frontend-Builder Hard Rule H5
-("Frontend에서 백엔드 코드 수정 금지") this cannot be patched in the frontend
-codebase. Frontend mitigation (drop the headers) would weaken the documented
-idempotency contract and is not acceptable.
-
-**Action**: **CB-002 filed at**
-`handoff/frontend-builder-to-agentic/CB-002-cors-allow-headers.md`.
-Backend fix is a 1-line addition to the Rust CORS layer's
-`Access-Control-Allow-Headers` list.
-
-**Step 8 release approval gates on CB-002 resolution.** Without CORS the
-frontend cannot reach live at all from a browser.
-
-### Issue 2 — `/palette/random?seed=` non-determinism → **CB-003 (Backend Defect)**
-
-**Independent verification curl** (two back-to-back calls, identical seed):
+### Phase 1 — MSW-on Playwright suites (independently re-run)
 ```
-$ curl "https://.../api/v1/palette/random?seed=94TMTHJ5QEQMW" -H "x-api-key: $KEY"
-{"object":"palette","id":"pal_01KNR8SCWJEE2H7D6860HEEHKY","colors":[{"hex":"#003534","name":"Dark Cyan"},...]}
+$ npx playwright test tests/flow-d.spec.ts tests/theme-bundle-adapter.spec.ts tests/a11y.spec.ts
 
-$ curl "https://.../api/v1/palette/random?seed=94TMTHJ5QEQMW" -H "x-api-key: $KEY"
-{"object":"palette","id":"pal_01KNR8SD2A681B3D5AC8A13VZT","colors":[{"hex":"#6E7CDF","name":"Blue"},...]}
+  ok  1 [chromium] › a11y.spec.ts:8 home route has no serious/critical a11y violations (1.9s)
+  ok  2 [chromium] › flow-d.spec.ts:16 ?seed=XXX on mount populates store before first regenerate
+  ok  3 [chromium] › flow-d.spec.ts:29 pressing r updates URL with a new valid 13-char Base32 seed
+  ok  4 [chromium] › flow-d.spec.ts:55 ?mode=light on mount applies light mode
+  ok  5 [chromium] › flow-d.spec.ts:69 invalid seed in URL falls back gracefully
+  ok  6 [chromium] › flow-d.spec.ts:86 mode default (dark) is omitted from URL
+  ok  7 [chromium] › theme-bundle-adapter.spec.ts:26 live /theme/generate returns themeBundle (backend conformance)
+  ok  8 [chromium] › theme-bundle-adapter.spec.ts:52 adapter flattens live themeBundle to PaletteResource
+  ok  9 [chromium] › theme-bundle-adapter.spec.ts:101 adapter is deterministic for fixed {primary, seed}
+  ok 10 [chromium] › theme-bundle-adapter.spec.ts:130 adapter handles stub themeBundle without crashing
+
+  10 passed (8.9s)
 ```
+**10/10 PASS**, all four Loop 1-4 user flow gates green simultaneously.
 
-Different first colors (`#003534` vs `#6E7CDF`). **Confirmed non-deterministic.**
+### Phase 1 — Live browser smoke (MSW OFF, real Railway, real CORS)
+```
+$ npx playwright test tests/flow-a-live.spec.ts --config playwright.live.config.ts
 
-**Documentation review** (`docs/frontend-handoff.md`):
-- Line 382 (§12 Common gotchas): *"`iterations: 1` on a seeded palette response indicates the seeded short-circuit path (deterministic output)."*
-- Line 418 (Sprint 6 Amendment): `seed` field on `/theme/generate` is described as *"Reserved for future deterministic palette generation."*
+API requests seen:
+  POST /api/v1/theme/generate         (mount)
+  POST /api/v1/theme/generate         (FR-1 URL-sync regenerate)
+  POST /api/v1/analyze/contrast-matrix
+  POST /api/v1/analyze/explain
+  POST /api/v1/analyze/contrast-matrix
+  POST /api/v1/analyze/explain
+theme response body keys: [object, id, createdAt, mode, primaryInput, primitive,
+  semantic, quality, wcag, warnings, framework, generatedAt, extendedSemantic,
+  seed, slotSource]
+themeBundle object field: themeBundle
+has primitive: true
 
-The doc states clearly that **seeded responses are deterministic** as a backend
-contract. `/palette/random?seed=` violates this. Either it's a backend bug or
-the docs need to explicitly carve `/palette/random` out of the determinism
-guarantee. Either way, this is a backend-side decision.
+  ok 1 [chromium-live] page loads + regenerates + no fatal console errors
+  ok 2 [chromium-live] network smoke — real /theme/generate returns themeBundle and adapter works (8.4s)
 
-**Classification**: **BACKEND DEFECT** (non-blocking for Sprint 1 release).
-The frontend's Loop 3 Path B intentionally never calls `/palette/random?seed=`
-— Flow A and Flow D both go through `/theme/generate` which IS deterministic.
-So this defect does NOT block Sprint 1 release. It's filed for backend
-attention before any future frontend feature attempts to use `/palette/random`
-with a seed.
+  2 passed (12.8s)
+```
+**2/2 PASS** against deployed Railway backend. The full chain
+api-client → theme-bundle adapter → store → PaletteDisplay → ColorSwatch
+works end-to-end with the live response shape, the post-CB-002 CORS allow-list,
+and the Loop 5 ColorSwatch Approach B refactor. No `TypeError`, no
+`Cannot read properties of undefined`, the swatch selector
+`button[aria-label*="of 5: hex" i]` returns exactly 5 elements.
 
-**Action**: **CB-003 filed at**
-`handoff/frontend-builder-to-agentic/CB-003-palette-random-determinism.md`.
+### Phase 2 — Independent axe-core scan (the gate of this loop)
+
+Loop 5 ships its own `tests/a11y.spec.ts` against `/`. Guard ran an additional
+independent axe-core scan against `/help` (tests/a11y-help.spec.ts, scratch,
+not committed) at the same `wcag2a + wcag2aa` tag set.
+
+**Results**:
+| Route | Serious | Critical | Moderate | Total |
+|-------|---------|----------|----------|-------|
+| `/` (home, after first regenerate) | 0 | 0 | 0 | 0 |
+| `/help` | 0 | 0 | 0 | 0 |
+
+Loop 4 baseline was 60 serious WCAG violations. Loop 5 is **0 across both Tier
+1 routes**. The gate is locked.
+
+Two follow-up violations Works fixed beyond the original FR-7..11 scope are
+**legitimately within FR-8/FR-10 root-cause**, not scope creep:
+1. `aria-hidden-focus` on `<aside aria-hidden="true">` JsonSidebar — direct
+   consequence of FR-10 (the aside contains focusable buttons).
+2. Additional `color-contrast` violations in JsonSidebar (hex text painted with
+   palette color on dark bg) and ComponentPreview (palette colors on hardcoded
+   white) — both share the FR-8 root cause (dynamic palette colors used as
+   foreground without contrast guarantee). Works correctly bundled them rather
+   than leaving them for Loop 6.
+
+### Phase 3 — Doctrine regression
+- **Vocabulary blacklist** (`Seamless|Empower|Revolutionize|혁신적인|새로운 차원의|Unlock the power|Transform your|Effortlessly`): **0 matches**
+- **Purple/indigo gradient** (`from-purple|to-blue|from-indigo|gradient-to.*purple`): **0 matches**
+- **Bounce easing** (`bounce`): only 1 false-positive — `/* Motion — ≤200ms hard cap, no bounce */` comment in `tokens.css:102`
+- **Brutalist tone preservation**: `--fg-tertiary` change (`#6b7280 → #94a3b8` slate-400) verified against `tokens.css` whole-file read. Color palette is still cool-neutral throughout (background ramps `#0b0c10`/`#14161b`/`#1b1e25`, fg `#e8eaed`/`#a8adb8`/`#94a3b8`, accent untouched at mint-cyan `#7AE4C3`). Slate-400 sits in the same neutral-cool tonal family — no warm or saturated drift. The IDE / code-editor aesthetic holds.
+- **21 keyboard shortcuts** (`use-keyboard-shortcuts.ts`): last touched in Loop 2 commit `b41dfcd`, **untouched in Loop 5**. Confirmed via git log.
+- **`use-url-sync.ts`** (FR-1): last touched in Loop 2, **untouched in Loop 5**. Flow D guarantee preserved.
+- **`api-client.ts` + `actions.ts` + `theme-bundle.ts`** (FR-4): last touched in Loop 3, **untouched in Loop 5**. Adapter still feeds 11 consumer sites.
+
+### Phase 4 — Source review of all 6 changed files
+
+| File | FR | Inspection notes |
+|------|----|------------------|
+| `ColorSwatch.tsx` | FR-7 | Outer `<div>` is plain (no role). Inner select `<button>` carries the full `aria-label="color N of 5: hex ..., oklch ..., hsl ..."` (preserves the live smoke selector). Lock `<button>` is a sibling in metadata area. Three copy `<span>`s no longer need stopPropagation (no parent button to bubble). Approach B is correct — does not violate axe `no-focusable-content` and does not violate `nested-interactive`. |
+| `tokens.css` | FR-8 | `--fg-tertiary: #94a3b8` (~6.5:1 on `#14161b`). Cool-neutral, doctrine-safe. |
+| `ContrastMatrix.tsx` | FR-9 | Both color-chip `<div>`s now have `role="img"` so `aria-label={hex}` is permitted. Two locations: `<thead><tr>` column header and `<tbody><tr>` row header. |
+| `GeneratorPage.tsx` | FR-10 | `.area-left` wrapper has `tabIndex={0}`. No aria-label added (would re-trigger FR-9). Skip-to-content link, `<main id="main" role="main">` landmarks intact. |
+| `ComponentPreview.tsx` | FR-11, FR-8 follow-up | Two `<h3>`→`<h2>` (matches sibling `<h2>contrast · colorblind</h2>`). Demo block has `inert=""` + `aria-hidden="true"` — pure visual preview, excluded from AT and keyboard focus. The accessible `<h2>preview (shadcn slots)</h2>` heading sits *outside* the inert block, so screen readers still announce the section. |
+| `JsonSidebar.tsx` | FR-8 follow-up, FR-10 | `<aside aria-hidden="true">` → `<aside aria-label="palette JSON preview">` (4 places). Hex text is now `<span class="text-fg-primary">` with a preceding 8×8 chip `<span role="img" aria-label="color N swatch">`. JSON preview is now a meaningful, accessible region. |
+| `tests/a11y.spec.ts` | NEW gate | `@axe-core/playwright`, `wcag2a + wcag2aa` tags, asserts zero serious/critical. Pinned for all future loops. |
+
+### Phase 5 — Q1-Q7 senior designer test (final)
+
+| | Question | Loop 1 (Conditional) | Loop 4 (Failed) | Loop 5 (Final) |
+|---|---|---|---|---|
+| Q1 | Does it look AI-generated? | No (brutalist, terminal aesthetic) | No | **No** |
+| Q2 | Differentiated from 50 generic SaaS? | Yes (IDE/code-editor metaphor) | Yes | **Yes** |
+| Q3 | Every choice intentional? | Yes (sharp corners, mint-cyan, hard caret blink) | Yes | **Yes** |
+| Q4 | ≥3 micro-interactions? | Yes (caret blink, copy-flash, focus ring, drawer slide) | Yes | **Yes** |
+| Q5 | Identity holds across pages? | Yes (gen, help, 404 all consistent) | Yes | **Yes** |
+| Q6 | Looks like someone with taste made it? | Yes | Yes | **Yes** |
+| Q7 | Would a respected designer be proud? | Conditional on Flow D (broken URL share) | Conditional on a11y (60 serious WCAG violations) | **Unconditional YES** |
+
+The two prior conditionals — Flow D shareability (Loop 1) and a11y compliance
+(Loop 4) — are both resolved. Q7 is now an unconditional yes.
+
+### Self-test §8 retraction verification
+
+Read `self-test-report.md:357-374`. The Loop 5 correction is **explicit and
+unambiguous**:
+
+> **[CORRECTION — Loop 5, 2026-04-09]**: This Loop 1 framing was misleading.
+> The static/spec-based self-audit implied WCAG AA compliance, but Guard Loop 4
+> ran axe-core for the first time and surfaced four serious WCAG violations
+> (nested-interactive, color-contrast 44 nodes on `--fg-tertiary`,
+> aria-prohibited-attr 10 nodes on ContrastMatrix color chips,
+> scrollable-region-focusable on `.area-left`) plus one moderate (heading-order).
+> These were pre-existing from Loop 1, not Loop 4 regressions. The Loop 2
+> decision to "defer axe-core wiring to Sprint 2" (§12.2 FR-3) was the Loop 1
+> miss — it let the false implication stand. Loop 5 resolves all five findings,
+> adds `tests/a11y.spec.ts` as a permanent axe-core gate asserting zero
+> serious/critical violations, and this correction is logged explicitly so the
+> lie is not preserved.
+
+Acceptable. The false claim is named, the loop where it should have been caught
+is named, the corrective action is named, and the permanent gate is named.
 
 ---
 
-## Phase 3 — Consumer safety check (11 sites)
+## Sprint-level risk assessment
 
-Re-grepped `palette\??\.colors` across `src/`. All 11 sites:
+| Risk | Severity | Status |
+|------|----------|--------|
+| Backend contract drift between MSW and live | High | **Mitigated** — Loop 3 adapter pattern + `theme-bundle-adapter.spec.ts` runs against live Railway. Future contract drift will fail this test in Loop 1. |
+| WCAG regression | High | **Mitigated** — `tests/a11y.spec.ts` permanent gate. Any future change that introduces serious/critical violations will fail CI. |
+| URL-share Flow D breaking | Medium | **Mitigated** — `tests/flow-d.spec.ts` 5 scenarios, all green. |
+| CORS / new headers added by frontend without backend coordination | Medium | **Open but documented** — Sprint 1 CORS gap (CB-002) is fixed; future header additions require backend coordination. Tracked in callback registry. |
+| Bundle size growing past 200 kB Tier 2 budget | Low | **Mitigated** — currently 64.74 kB gzipped, 32% of budget. |
+| `inert` attribute browser support | Low | **Acceptable** — modern browsers (Chrome 102+, Safari 15.5+, Firefox 112+) all support it. The inert ComponentPreview block is a decorative slot showing dynamic palette colors; degraded behavior on old browsers = the block becomes focusable but is still aria-hidden, no functional regression. |
 
-| File | Line | Pattern | Status |
-|------|------|---------|--------|
-| `hooks/use-keyboard-shortcuts.ts` | 96 | `s.palette.colors[focused].hex` | OK — receives normalized PaletteResource |
-| `lib/actions.ts` | 73 | `store.palette?.colors[0]?.hex ?? '#0F172A'` | OK — defensive |
-| `components/ComponentPreview.tsx` | 29-33 | `palette.colors[0..4]?.hex ?? <fallback>` | OK — adapter guarantees length 5 |
-| `components/ContrastMatrix.tsx` | 76 | `palette?.colors.map((c) => c.hex) ?? []` | OK |
-| `components/JsonSidebar.tsx` | 77 | `palette.colors.map((c, i) => ...)` | OK |
-| `components/ExplainPanel.tsx` | 37 | `palette?.colors.map((c) => c.hex) ?? []` | OK |
-| `components/PaletteDisplay.tsx` | 95 | `palette?.colors.map((c, i) => ...)` | OK |
-
-Adapter at API client boundary guarantees `palette.colors` is always a 5-element array of `Color` objects with valid `.hex/.rgb/.hsl/.oklch`. Zero new crash sites introduced. Zero consumer-side modifications required.
-
-**Phase 3 verdict: PASS.**
+No critical risks open. No deferred blockers. No outstanding callbacks. CB-003
+(`/palette/random?seed=` non-determinism) was Loop 3-discovered, deferred to
+Sprint 2 by mutual agreement, and is **not** in scope for this release because
+no Sprint 1 user flow consumes it (Path B adapter sidesteps it entirely).
 
 ---
 
-## Phase 4 — Final judgment
+## Lab-promised features (PRD §7 Tier 1) — final status
 
-| Criterion | Required | Actual | Status |
-|-----------|----------|--------|--------|
-| FR-4 fix correctness | Adapter correctly maps live shape | 4/4 live tests pass, curl matches | **PASS** |
-| FR-4 root cause closure | MSW ↔ live divergence eliminated | `stubThemeBundle()` returns themeBundle shape | **PASS** |
-| Loop 1 PASS criteria preserved | Doctrine + 21 shortcuts + tokens | All clean, files untouched | **PASS** |
-| Loop 2 FR-1 preserved | Flow D 5/5 PASS | 5/5 (after .env.local cleanup) | **PASS** |
-| Build clean | 0 errors / 0 warnings | OK, 65.96 kB gzipped | **PASS** |
-| Browser-level live E2E | At least one passing browser smoke | BLOCKED by CB-002 | **DEFERRED** |
-| Hygiene (.env.local) | dev-live cleanup reliable | Stale file found | **FE-DEFECT FR-5 (LOW)** |
-
-**Verdict**: **CONDITIONAL PASS**.
-- Frontend code is correct and proven against live backend at Node level.
-- Browser-level smoke against live deferred until CB-002 resolved.
-- Step 8 release approval **MUST WAIT** for CB-002 backend fix + a final post-fix browser smoke (10-line `tests/flow-a-live.spec.ts` already drafted by Works, will be re-run as the unblock check).
-
-**fixLoopCount**: 3/7. Below escalation cap. No Loop 4 needed for code; Loop 4 (if any) would only be the post-CB-002 browser smoke confirmation, which is a CONDITIONAL→FULL PASS upgrade, not a re-fix loop.
+| Feature | Status |
+|---------|--------|
+| Flow A: generate palette | PASS (live + MSW) |
+| Flow B: explain palette | PASS (verified via live API request log) |
+| Flow C: contrast matrix | PASS (verified via live API request log) |
+| Flow D: URL seed round-trip | PASS (5 scenarios) |
+| 21 keyboard shortcuts | PASS (unchanged from Loop 1) |
+| 4-state component coverage | PASS (unchanged) |
+| Dark/light theme | PASS (Loop 2 verified) |
+| 9-mode colorblind sim | PASS (Loop 1 verified) |
+| WCAG AA compliance | **PASS** (Loop 5 axe-verified, 0 serious/critical) |
 
 ---
 
-## Files written by Guard in Loop 3
+## Verdict
 
-- `handoff/pass-report.md` (this file)
-- `handoff/frontend-builder-to-agentic/CB-002-cors-allow-headers.md`
-- `handoff/frontend-builder-to-agentic/CB-003-palette-random-determinism.md`
-- `handoff/guard-to-works/fix-requests.md` (appended FR-5 hygiene note for Sprint 2 backlog)
-- `handoff/guard-to-works/status.json` (state: pass-conditional, loop 3)
-- `context/lead-reports/guard/{7 reports}` (Loop 3 Update sections appended)
+**FULL PASS — Sprint 1 ready for release approval gate.**
 
-## Recommendations to Orchestrator
+- No outstanding callbacks
+- No deferred blockers
+- All FRs (1-11) resolved
+- Both Tier 1 routes axe-clean
+- Live browser smoke green against deployed Railway
+- All 12 tests across 4 suites green (10 MSW-on + 2 live)
+- Doctrine preserved
+- Q7 unconditional yes
+- Permanent a11y gate committed
+- Self-test §8 false claim retracted
 
-1. **Send CB-002 to Agentic Conglomerate immediately** — backend fix is ~1 line of Rust + redeploy, can be turned around in <10 min.
-2. **Defer CB-003** to next backend sprint — non-blocking for Sprint 1 release because Path B never calls `/palette/random`.
-3. **After CB-002 resolved**: re-run `npx playwright test tests/flow-a-live.spec.ts --config playwright.live.config.ts` to upgrade CONDITIONAL → FULL PASS.
-4. **Sprint 2 hardening backlog** (FR-5 LOW): fix `dev-live.mjs` cleanup, add Lighthouse CI, wire `axe-core` into a `tests/a11y.spec.ts`.
+`fixLoopCount` final = **5/7**. 2 loops of headroom unused.
+
+Frontend-Builder Step 8 release approval gate is **OPEN**. Recommend human approval and proceed to Step 9 (sprint retrospective) — knowledge file already pre-written for retrospective harvest.
+
+---
+
+## Files of record (Loop 5)
+
+- Source changes (6): `src/components/ColorSwatch.tsx`, `src/styles/tokens.css`, `src/components/ContrastMatrix.tsx`, `src/pages/GeneratorPage.tsx`, `src/components/ComponentPreview.tsx`, `src/components/JsonSidebar.tsx`
+- Test added (1): `tests/a11y.spec.ts`
+- Handoff updates (4): `handoff/works-to-guard/{fix-report,changelog,self-test-report}.md`, `handoff/works-to-guard/status.json`
+- Knowledge written (1): `04-guard/knowledge/patterns/verification-layer-cascade.md` (Frontend-Builder)
+- This pass report: `handoff/pass-report.md`

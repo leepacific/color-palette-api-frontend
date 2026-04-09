@@ -117,3 +117,40 @@ Path B was a non-trivial architecture decision that **could** have been a scope 
 ### Conditional element
 
 CONDITIONAL PASS verdict is solely due to CB-002 (backend CORS) blocking the browser-level live smoke. PRD §6 release criteria require "live API + browser end-to-end smoke" which is currently impossible to execute. Once CB-002 lands and `flow-a-live.spec.ts` passes, the verdict upgrades to FULL PASS without further Works fixes needed.
+
+---
+
+## Loop 5 Update — 2026-04-09 (PRD Conformance Lead, Frontend Guard)
+
+### Status: PASS (all PRD §7 Tier 1 features verified)
+
+Loop 5 closes the last gap. The PRD §7 "WCAG AA compliance" Tier 1 line was previously only **claimed** by the Loop 1 self-test (statically), then **falsified** by the Loop 4 axe-core scan, and is now **verified** by the Loop 5 axe scan + permanent `tests/a11y.spec.ts` gate.
+
+### Tier 1 final status
+
+| PRD §7 line | Verification gate | Loop 5 result |
+|-------------|-------------------|----------------|
+| Flow A: generate palette | tests/flow-a-live.spec.ts (live Railway) | PASS 2/2 |
+| Flow B: explain palette | live API request log + ExplainPanel render | PASS (verified via live smoke) |
+| Flow C: contrast matrix | live API request log + ContrastMatrix render | PASS (verified via live smoke) |
+| Flow D: URL seed round-trip | tests/flow-d.spec.ts | PASS 5/5 |
+| 21 keyboard shortcuts | use-keyboard-shortcuts.ts unchanged from Loop 1 | PASS (regression-clean) |
+| 4-state component coverage | Loop 1 verified | PASS (regression-clean) |
+| Dark/light theme | Loop 2 verified | PASS (regression-clean) |
+| 9-mode colorblind sim | Loop 1 verified | PASS (regression-clean) |
+| WCAG AA compliance | tests/a11y.spec.ts (NEW Loop 5) + independent /help scan | **PASS** (0 serious / 0 critical on both Tier 1 routes) |
+| 23 components, 6 token categories | Loop 1 verified | PASS (regression-clean) |
+
+### Lab amendments / scope changes
+
+None in Loop 5. The two follow-ups Works fixed (JsonSidebar contrast + ComponentPreview inert) are within FR-8/FR-10 root-cause scope, not Lab amendments.
+
+### PRD deviations carried into release
+
+- C6 SeedInput deferred to Sprint 2 — LEGITIMATE per Lab `ux-flows.md:168`
+- TanStack Query, Zod, Lighthouse CI deferred to Sprint 2 — within Works-CTO authority
+- `/palette/random?seed=` non-determinism (CB-003) deferred to Sprint 2 — no Sprint 1 user flow consumes it
+
+### Verdict
+
+PASS. All PRD §7 Tier 1 features are now verified with executed tests, not asserted with static review.

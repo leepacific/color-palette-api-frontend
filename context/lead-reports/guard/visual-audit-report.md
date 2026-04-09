@@ -103,3 +103,49 @@ The FR-4 fix is exclusively in:
 +0.61 kB raw / +0.25 kB gzipped, all attributable to the adapter + new types. No visual budget impact.
 
 **No visual regression possible given the scope of Loop 3 changes.**
+
+---
+
+## Loop 5 Update — 2026-04-09 (Visual Audit Lead, Frontend Guard)
+
+### Status: PASS (doctrine preserved through a11y refactor)
+
+The risk in Loop 5 was that the FR-7..11 a11y fixes would drift the brutalist + IDE aesthetic. Specifically:
+- FR-7 ColorSwatch refactor (Approach B sibling overlay) could have changed the visual rhythm of the swatch grid
+- FR-8 `--fg-tertiary` color change could have introduced warm/saturated drift
+- FR-9 `role="img"` on chips is semantic-only, no visual risk
+- FR-11 h3→h2 promotion could have changed type scale appearance if `<h2>` and `<h3>` had different default styles
+
+### FR-7 visual review
+
+ColorSwatch source verified. Approach B keeps:
+- Sharp 1px / 2px borders (`border-base` default, `border-accent` 2px on focus)
+- 160px min-height color block at top
+- The same metadata area at bottom with hex (3xl), oklch (sm), hsl (xs), name + lock toggle
+- The `[1]` and `[L]` keycap indicators in the absolute corners
+- focus-visible mint-cyan outline
+
+The structural difference (outer `<div>` instead of `<button>`) is invisible to the user. The select-button now wraps only the color block, and the metadata area is a sibling — but the visual rendering is byte-identical because the metadata area was visually below the color block already.
+
+### FR-8 doctrine check (the most important visual concern)
+
+Read `tokens.css` end-to-end. The new `--fg-tertiary: #94a3b8` (Tailwind slate-400) sits in the same neutral-cool tonal family as the rest of the dark theme:
+- bg ramps: `#0b0c10`, `#14161b`, `#1b1e25` — all neutral-cool
+- fg ramps: `#e8eaed` (primary), `#a8adb8` (secondary), `#94a3b8` (tertiary, NEW) — all neutral-cool
+- border ramps: `#272a33`, `#3a3e4a` — neutral-cool
+- accent: `#7ae4c3` — mint-cyan, **untouched**
+- semantic colors (`#7ae4c3`, `#e8b84b`, `#eb5757`, `#8bb4f0`) — **untouched**
+
+No warm drift, no saturation drift. The IDE / code-editor aesthetic holds. The Loop 1 self-test "soft warm gray" intent is replaced by "soft cool gray" — actually a *better* fit for the brutalist + dark IDE doctrine, which has zero warm tones elsewhere.
+
+### FR-11 type scale check
+
+`<h2>preview (shadcn slots)</h2>` in ComponentPreview now matches the sibling `<h2>contrast · colorblind</h2>` in ContrastMatrix. Both use the same Tailwind `text-sm text-fg-tertiary` and `text-lg font-medium text-fg-primary` styling respectively (different by author intent, not a regression). The visual rendering is unchanged because Tailwind utility classes are applied directly, not the browser default `<h3>` vs `<h2>` styling.
+
+### ComponentPreview inert block
+
+The inert + aria-hidden block is still **visually rendered** (CSS `inert` doesn't hide it visually, only excludes it from AT and tab order). So the shadcn-slot preview is still part of the visual identity of the page. Users see the same demo. Only screen readers and keyboard users skip it.
+
+### Verdict
+
+PASS. Doctrine intact. No AI-cliché regression. Brutalist + IDE + mint-cyan aesthetic preserved through 5 loops of refactoring.

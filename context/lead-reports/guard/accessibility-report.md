@@ -93,3 +93,50 @@ The adapter delivers a normalized `PaletteResource` to the same components that 
 **axe-core wiring**: still deferred to Sprint 2 hardening (logged in `fix-requests.md` FR-5 backlog along with Lighthouse CI). Justified because (a) Loop 1 manual a11y audit was clean, (b) zero structural DOM changes in Loops 2 and 3, (c) Loop 3 added no UI surfaces — only data plumbing.
 
 **No a11y impact from CB-002 / CB-003** (those are backend defects; the frontend a11y surface is unaffected). Once CB-002 lands and the browser-level live smoke runs, an a11y axe sweep on the live-data render should be added to that post-CB-002 spec.
+
+---
+
+## Loop 5 Update — 2026-04-09 (Accessibility Lead, Frontend Guard)
+
+### Status: PASS (gate locked)
+
+Loop 4 axe-core scan surfaced 60 serious WCAG violations (4 rules) + 1 moderate. Loop 5 Works fix resolved all five FRs. Loop 5 Guard re-verification:
+
+| Route | wcag2a + wcag2aa scan | Serious | Critical | Moderate |
+|-------|----------------------|---------|----------|----------|
+| `/`    (post first regenerate) | run | 0 | 0 | 0 |
+| `/help` | run | 0 | 0 | 0 |
+
+### FR-7 (nested-interactive): RESOLVED — Approach B (sibling overlay)
+
+Verified `ColorSwatch.tsx` source. Outer element is a plain `<div>` (no role). Inner select `<button>` overlays only the color block at top, carries the full `aria-label="color N of 5: hex ..., oklch ..., hsl ..., locked"`. Lock toggle is a sibling `<button>` in the metadata area. The Approach A (`role=button` wrapping everything) was rejected by axe `no-focusable-content`; Approach B is the only design that satisfies both `nested-interactive` and `no-focusable-content` while preserving both affordances and the live-smoke selector `button[aria-label*="of 5: hex" i]`.
+
+### FR-8 (color-contrast): RESOLVED
+
+`--fg-tertiary: #6b7280 (3.74:1) → #94a3b8 (~6.5:1 on #14161b)`. Tailwind slate-400, cool-neutral, no warm or saturated drift. Two follow-up sites legitimately bundled (within FR-8 root cause, not scope creep):
+- `JsonSidebar.tsx` hex text now `--fg-primary` + decorative 8×8 chip `<span role="img">` instead of palette-color text on dark bg
+- `ComponentPreview.tsx` shadcn-slot demo block marked `inert` + `aria-hidden="true"` because the slots paint dynamic palette colors on hardcoded white (contrast is a property of the generated palette, not app chrome). The accessible `<h2>preview (shadcn slots)</h2>` heading is *outside* the inert block.
+
+### FR-9 (aria-prohibited-attr): RESOLVED
+
+`ContrastMatrix.tsx` — both color-chip `<div>` elements (header row + header column) now have `role="img"`. `aria-label={hex}` is now permitted. Verified in source.
+
+### FR-10 (scrollable-region-focusable): RESOLVED
+
+`GeneratorPage.tsx` `.area-left` wrapper has `tabIndex={0}`. Keyboard users can focus and arrow-scroll the JSON sidebar region. No aria-label added (would re-trigger FR-9). Bonus: `JsonSidebar.tsx` `<aside aria-hidden="true">` (4 places) → `<aside aria-label="palette JSON preview">` — closes the `aria-hidden-focus` follow-up violation that the previous aria-hidden triggered (the aside contains focusable buttons).
+
+### FR-11 (heading-order): RESOLVED
+
+`ComponentPreview.tsx` two `<h3>` → `<h2>`. Document hierarchy is now `<h1>generator</h1>` → `<h2>contrast · colorblind</h2>` + `<h2>preview (shadcn slots)</h2>` with no skipped levels.
+
+### Permanent gate
+
+`tests/a11y.spec.ts` (NEW, committed) — `@axe-core/playwright` against home route at `wcag2a + wcag2aa`, asserts `seriousOrCritical.length === 0`. Pinned for all future loops. The Loop 1 failure mode ("static a11y self-audit lied about WCAG AA") cannot recur silently.
+
+### Self-test §8 retraction
+
+Verified explicit, unambiguous correction at `self-test-report.md:357-374`. Loop 1 false WCAG claim is named, Loop 2 acceptance of axe-core deferral is named as the miss point, Loop 5 corrective action is named, permanent gate is named.
+
+### Verdict
+
+PASS. WCAG AA compliance is now actually verified, not assumed. No outstanding a11y items.

@@ -96,3 +96,21 @@ dist/assets/index-BWTbsmnl.css    43.26 kB │ gzip: 19.50 kB
 - IDE tool-window grid template (280/1fr/360 × 44/1fr/180) — unchanged
 
 No responsive regression possible.
+
+---
+
+## Loop 5 Update — 2026-04-09 (Responsive Lead, Frontend Guard)
+
+### Status: PASS (no responsive regression)
+
+Loop 5 a11y fixes are structural (Approach B sibling overlay) and attribute-only (`role`, `tabIndex`, `inert`, `aria-hidden`, `aria-label`). The IDE tool-window grid (`app-shell-grid`) and responsive breakpoints (<1200 collapse right, <900 collapse left) are unchanged.
+
+`GeneratorPage.tsx` `tabIndex={0}` on `.area-left` is a keyboard-focus addition, not a layout change.
+
+`ComponentPreview.tsx` `inert` + `aria-hidden` does not affect layout — the block still occupies the same space and renders the same shadcn-slot demo.
+
+`JsonSidebar.tsx` chip prefix on hex text adds 8×8 + 4px margin per line (~12px width) — fits within the 280px sidebar with no overflow. Visual rhythm unchanged.
+
+### Verdict
+
+PASS. Layout, breakpoints, and panel widths intact.

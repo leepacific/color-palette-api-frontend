@@ -142,3 +142,47 @@ The Loop 1 + Loop 2 caveat ("MSW masks FR-4") is now CLOSED. `src/mocks/stub-dat
 The first Flow D run in this verification session failed 2/5 due to a stale `frontend/.env.local` left behind by `scripts/dev-live.mjs`. This file forces `VITE_USE_MSW=false` which makes the canonical `playwright.config.ts` (MSW-on) inadvertently hit live, which then fails CORS preflight (CB-002). Resolution: `rm frontend/.env.local`, then 5/5 PASS.
 
 This is an environmental hygiene defect, NOT an interaction-test regression. Logged as **FR-5 LOW** in `fix-requests.md` for Sprint 2 hardening (recommended fix: replace file-based env override with `cross-env`).
+
+---
+
+## Loop 5 Update — 2026-04-09 (Interaction Test Lead, Frontend Guard)
+
+### Status: PASS (all 12 tests across 4 suites green)
+
+| Suite | Mode | Result | Loop notes |
+|-------|------|--------|------------|
+| `tests/flow-d.spec.ts` (5 scenarios) | MSW-on | **5/5 PASS** | Loop 2 FR-1 fix; regression-clean through Loops 3-5 |
+| `tests/theme-bundle-adapter.spec.ts` (4 scenarios) | LIVE Railway via Node fetch | **4/4 PASS** | Loop 3 FR-4 adapter; regression-clean Loops 4-5 |
+| `tests/a11y.spec.ts` (1 scenario, NEW Loop 5) | MSW-on | **1/1 PASS** | New permanent gate, asserts 0 serious/critical via @axe-core/playwright on home route |
+| `tests/flow-a-live.spec.ts` (2 scenarios) | LIVE Railway via Chromium with real CORS preflight | **2/2 PASS** | Loop 4 FR-6 selector fix; regression-clean Loop 5 (FR-7 ColorSwatch refactor preserved the `button[aria-label*="of 5: hex" i]` selector by design) |
+
+**Total: 12 / 12 PASS.**
+
+### Independent additional axe scan (Phase 2 of Loop 5 verification)
+
+Guard ran a scratch `tests/a11y-help.spec.ts` against `/help` route (in addition to Works' `tests/a11y.spec.ts` against `/`):
+
+```
+=== /help axe scan ===
+total violations: 0
+serious/critical: 0
+all by impact: []
+ok 1 [chromium] › a11y-help.spec.ts:8 help route has no serious/critical a11y violations (2.0s)
+```
+
+Both Tier 1 routes are axe-clean.
+
+### Keyboard interactions
+
+All 21 shortcuts unchanged from Loop 1 (`use-keyboard-shortcuts.ts` last touched in Loop 2 commit `b41dfcd`). Loop 5 ColorSwatch Approach B does not affect keyboard interactions because:
+- Select button still receives `Tab` focus and `Enter`/`Space` activation
+- Lock toggle is now a separate Tab stop (correct — was previously buried under nested-button)
+- Copy `<span>`s still respond to click
+
+### `inert` block on ComponentPreview
+
+The shadcn-slot demo block is `inert` + `aria-hidden`. Verified that Tab does not enter the block — the next Tab stop after the `<h2>preview (shadcn slots)</h2>` heading skips directly to the ContrastMatrix region. Correct behavior.
+
+### Verdict
+
+PASS. All interaction gates green. fixLoopCount=5/7. Sprint 1 ready for release approval gate.
