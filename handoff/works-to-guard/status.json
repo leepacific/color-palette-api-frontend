@@ -1,17 +1,17 @@
 {
   "state": "ready",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "author": "Frontend Works CTO",
-  "timestamp": "2026-04-09T04:36:42Z",
+  "timestamp": "2026-04-09T05:42:00Z",
   "build_status": "pass",
   "self_test_status": "pass",
   "page_count": 3,
   "component_count": 22,
   "sprint": 1,
-  "loop": 3,
-  "fix_loop_count": 3,
+  "loop": 4,
+  "fix_loop_count": 4,
   "mode": "A",
   "data_source": "msw+live-adapter",
-  "playwright_tests": "flow-d 5/5 pass, theme-bundle-adapter 4/4 pass (live backend)",
-  "notes": "Sprint 1 Loop 3 fix. FR-4 (/theme/generate themeBundle type mismatch, runtime crash on live) resolved via Path B: new src/lib/theme-bundle.ts adapter + ThemeBundleResource type in src/types/api.ts + api-client.ts boundary wiring + MSW stub parity fix (stub-data.ts + handlers.ts). Path A (switch to /palette/random?seed=) was rejected after live curl showed /palette/random?seed= is non-deterministic (would break Flow D byte-identity — Loop 2 FR-1 fix). All 11 consumer sites untouched (adapter shields them). FR-1/FR-2/FR-3 remain RESOLVED. Build 0 errors 0 warnings, 65.96 kB gzipped (+0.61 kB vs 0.1.1). Adapter unit + live-integration suite: 4/4 PASS against LIVE Railway v1.5.0 (bypasses browser CORS via Node fetch). Flow D regression: 5/5 PASS. Loop 3 discovery (NOT in FR-4 scope, NOT touched): backend CORS allow-headers missing idempotency-key + request-id, blocks browser→live MSW-off smoke. Recommend separate Callback B to backend post-Loop-3. See fix-report.md §Loop 3 and self-test-report.md §13 for full evidence."
+  "playwright_tests": "flow-d 5/5 pass, theme-bundle-adapter 4/4 pass, flow-a-live 2/2 pass (LIVE Railway, MSW off)",
+  "notes": "Sprint 1 Loop 4 fix. FR-6 (Flow A live browser smoke — swatch assertion) resolved. Root cause: Loop 3 authored `tests/flow-a-live.spec.ts` line 117 with selector `button[aria-label*=\"copy\" i]` that never existed in the DOM. ColorSwatch.tsx sets aria-label=`color N of 5: hex #RRGGBB, oklch ..., hsl ...` (no 'copy' substring). Copy actions live on <span onClick>, not on buttons. Loop 3 could not detect the bad selector because CORS (CB-002) blocked the browser flow before the assertion was ever reached — the test failure surfaced only after Agentic FB-007 landed the CORS allow-headers fix. Fix: retargeted selector to `button[aria-label*=\"of 5: hex\" i]` and tightened assertion to `.toBe(5)` (expected swatch count). No src/ changes — adapter, actions, api-client, store, PaletteDisplay all verified working end-to-end by the now-passing browser smoke. flow-a-live 2/2 PASS against LIVE Railway (both 'page loads + regenerate + no console errors' and 'network smoke — real /theme/generate returns themeBundle and adapter works'). Flow D 5/5 regression clean. Adapter 4/4 regression clean. Build 0 errors 0 warnings. Doctrine greps clean. Secondary observation (NOT in FR-6 scope, NOT touched): ColorSwatch.tsx nests a <button> inside a <button> (lock toggle inside main swatch button), emitting React validateDOMNesting warning. This is a Loop 1/2 accessibility/validity concern for a future loop — it does NOT affect rendering, data flow, or any assertion. See fix-report.md §Loop 4 FR-6 and self-test-report.md §14 for full evidence."
 }

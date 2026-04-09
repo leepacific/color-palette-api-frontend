@@ -113,10 +113,18 @@ test.describe('Flow A — live backend smoke (MSW off)', () => {
     expect(themeResponseBody.object).toBe('themeBundle');
     expect(themeResponseBody.primitive?.primary?.['500']?.hex).toMatch(/^#[0-9A-F]{6}$/i);
 
-    // Verify swatches rendered (proves adapter → store → ComponentPreview worked)
-    const swatchButtons = page.locator('button[aria-label*="copy" i]');
+    // Verify swatches rendered (proves adapter → store → PaletteDisplay worked).
+    // ColorSwatch.tsx sets aria-label="color N of 5: hex #RRGGBB, oklch ..., hsl ...".
+    // Loop 3 used a placeholder selector ("copy") that never existed in the DOM —
+    // the app has no aria-label containing "copy". Loop 4 FR-6 retargets the
+    // assertion at the real swatch aria-label so the browser-level integration
+    // proof exercises the adapter → store → render chain end-to-end.
+    const swatchButtons = page.locator('button[aria-label*="of 5: hex" i]');
     const count = await swatchButtons.count();
-    expect(count, `no swatch buttons rendered. Logs:\n${logs.join('\n')}`).toBeGreaterThan(0);
+    expect(
+      count,
+      `no swatch buttons rendered (expected 5 from adapter output). Logs:\n${logs.join('\n')}`,
+    ).toBe(5);
 
     // No runtime crashes
     const fatal = logs.filter((e) =>

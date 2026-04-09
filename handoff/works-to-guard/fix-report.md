@@ -1,3 +1,165 @@
+# Fix Report — color-palette-api frontend · Sprint 1 · Loops 2–4
+
+## Loop 4 — FR-6 resolution (2026-04-09)
+
+**Author**: Frontend Works CTO
+**Loop**: 4 (responding to Guard Loop 3 CONDITIONAL PASS post-CB-002 upgrade run)
+**Scope**: Strictly FR-6 only. No src/ code changes. No Loop 1/2/3 items touched.
+
+### Context
+
+Guard Loop 3 judgment was **CONDITIONAL PASS** — all FR-4 evidence was accepted
+but one gate remained: Flow A live browser smoke could not run because
+CB-002 (backend CORS missing `idempotency-key` + `request-id` in allow-headers)
+blocked the browser preflight. Agentic backend shipped FB-007 (CORS fix) to
+Railway; Orchestrator re-ran `flow-a-live.spec.ts` to upgrade the judgment to
+FULL PASS.
+
+Result: **1 pass / 1 fail**. CORS is confirmed resolved (preflight succeeds,
+theme/generate responds, adapter processes the response) — but a previously
+invisible test-authoring defect surfaced.
+
+### FR-6 — Flow A live browser smoke, wrong swatch selector
+
+| Field | Value |
+|-------|-------|
+| Severity | CRITICAL (blocking Loop 3 upgrade) |
+| Origin | Loop 3 test authoring — `tests/flow-a-live.spec.ts` written without live execution (CORS blocked it) |
+| Symptom | `expect(count).toBeGreaterThan(0)` fails at `flow-a-live.spec.ts:119`; message "no swatch buttons rendered" |
+| Status | **FIXED** — test selector retargeted |
+| Scope | Test-only change, **zero src/ modifications** |
+
+### Diagnostic — what actually happens in the live browser
+
+Ran `npx playwright test tests/flow-a-live.spec.ts --config playwright.live.config.ts`
+and captured the full debug output. Ground-truth evidence:
+
+**Backend calls observed (all 200 OK):**
+```
+REQ POST https://color-palette-api-production-a68b.up.railway.app/api/v1/theme/generate
+REQ POST https://color-palette-api-production-a68b.up.railway.app/api/v1/theme/generate
+REQ POST https://color-palette-api-production-a68b.up.railway.app/api/v1/analyze/contrast-matrix
+REQ POST https://color-palette-api-production-a68b.up.railway.app/api/v1/analyze/explain
+REQ POST https://color-palette-api-production-a68b.up.railway.app/api/v1/analyze/contrast-matrix
+REQ POST https://color-palette-api-production-a68b.up.railway.app/api/v1/analyze/explain
+```
+
+**Response shape (live Railway):**
+```
+theme response body keys: [
+  'object', 'id', 'createdAt', 'mode', 'primaryInput', 'primitive',
+  'semantic', 'quality', 'wcag', 'warnings', 'framework', 'generatedAt',
+  'extendedSemantic', 'seed', 'slotSource'
+]
+themeBundle object field: themeBundle
+has primitive: true
+```
+
+**First scenario PASSED**: `page loads + regenerate + no console errors
+against live API (773ms)`. This scenario presses `r` via keyboard, waits for
+the document title `cpa [SEED]` to settle to a valid 13-char Crockford Base32
+seed, presses `r` again, waits for the title to change. It is end-to-end proof
+that `actions.regeneratePalette()` → `api.generateTheme()` → `theme-bundle
+adapter` → `store.setPalette()` → `PaletteDisplay.tsx` → `ColorSwatch.tsx` all
+work correctly against the LIVE Railway backend with the current `actions.ts`
+call shape.
+
+**No runtime errors**: the `fatal` filter captured zero matches for
+`PAGEERROR|Cannot read propert|undefined.*hex|TypeError`.
+
+### Root cause
+
+`tests/flow-a-live.spec.ts:117`:
+```ts
+const swatchButtons = page.locator('button[aria-label*="copy" i]');
+```
+
+This selector matches **zero** elements in the app DOM. A global grep
+`grep -rn 'aria-label.*copy' src/ tests/` returns only the test line itself.
+
+What the app actually renders (`src/components/ColorSwatch.tsx:27-34`):
+```tsx
+<button
+  type="button"
+  ...
+  aria-label={`color ${index + 1} of 5: hex ${color.hex}, oklch ${formatOklch(color.oklch)}, hsl ${formatHsl(color.hsl)}${locked ? ', locked' : ''}`}
+>
+```
+
+Copy interactions live on `<span onClick>` elements at lines 53, 62, 71 —
+they are **not** buttons and have no "copy" aria-label. The `onCopy()`
+handler's toast message (`'hex copied'` etc.) is emitted only at runtime to
+the toast store, never into the DOM as an attribute.
+
+Loop 3 could not have detected this mismatch because CB-002 CORS prevented
+the browser flow from ever reaching the assertion. The first green signal
+from a live browser run exposes it immediately.
+
+### Fix
+
+`tests/flow-a-live.spec.ts:113-119` → retargeted selector + tightened count:
+
+```ts
+// ColorSwatch.tsx sets aria-label="color N of 5: hex #RRGGBB, oklch ..., hsl ...".
+// Loop 3 used a placeholder selector ("copy") that never existed in the DOM —
+// the app has no aria-label containing "copy". Loop 4 FR-6 retargets the
+// assertion at the real swatch aria-label so the browser-level integration
+// proof exercises the adapter → store → render chain end-to-end.
+const swatchButtons = page.locator('button[aria-label*="of 5: hex" i]');
+const count = await swatchButtons.count();
+expect(
+  count,
+  `no swatch buttons rendered (expected 5 from adapter output). Logs:\n${logs.join('\n')}`,
+).toBe(5);
+```
+
+`.toBe(5)` instead of `.toBeGreaterThan(0)` so a regression from 5 to 4 or 6
+swatches (adapter bug) would also be caught.
+
+### Verification
+
+```
+$ npx playwright test tests/flow-a-live.spec.ts --config playwright.live.config.ts
+  ok 1 [chromium-live] › page loads + regenerate + no console errors against live API (773ms)
+  ok 2 [chromium-live] › network smoke — real /theme/generate returns themeBundle and adapter works (8.5s)
+  2 passed (12.8s)
+```
+
+```
+$ npx playwright test tests/flow-d.spec.ts tests/theme-bundle-adapter.spec.ts
+  9 passed (6.5s)
+```
+
+```
+$ npm run build
+  ✓ built in 1.98s
+  (0 errors, 0 warnings, 207.72 kB raw / 64.68 kB gzipped — identical to 0.1.2)
+```
+
+Doctrine greps clean.
+
+### Files changed
+
+| File | Change | Lines |
+|------|--------|-------|
+| `tests/flow-a-live.spec.ts` | Retargeted swatch selector + count assertion | 113-124 |
+| `handoff/works-to-guard/status.json` | version 0.1.3, loop 4, fix_loop_count 4, updated notes | whole |
+| `handoff/works-to-guard/changelog.md` | Prepended 0.1.3 Loop 4 section | top |
+| `handoff/works-to-guard/fix-report.md` | Prepended Loop 4 FR-6 section (this) | top |
+| `handoff/works-to-guard/self-test-report.md` | Appended §14 Loop 4 verification | bottom |
+
+### Secondary observation (NOT touched, flagged for future loop)
+
+React emits `Warning: validateDOMNesting(...): <button> cannot appear as a
+descendant of <%s>... <button>` from `ColorSwatch.tsx`. The lock-toggle
+`<button>` at line 84 is nested inside the main swatch `<button>` at line 27.
+This is an HTML validity / accessibility bug dating from Loop 1/2. It does
+**not** affect rendering, data flow, the FR-6 assertion, or any current test
+outcome. The `fatal` filter at `flow-a-live.spec.ts:122` does not match the
+DOM nesting warning. Out of FR-6 scope — flagging for a dedicated future loop.
+
+---
+
 # Fix Report — color-palette-api frontend · Sprint 1 · Loop 2
 
 **Author**: Frontend Works CTO

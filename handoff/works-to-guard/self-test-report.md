@@ -673,3 +673,188 @@ rules (FE-only scope, no cross-repo writes).
 
 Loop 2 → Loop 3. fixLoopCount=2 → 3/7. Well below the 7-loop escalation cap.
 
+## §14 Loop 4 — FR-6 verification (2026-04-09, version 0.1.3)
+
+### 14.1 Trigger
+
+Guard Loop 3 judgment was **CONDITIONAL PASS** — all FR-4 adapter evidence
+accepted, with one gate remaining: Flow A live browser smoke could not run
+because CB-002 (backend CORS missing `idempotency-key`/`request-id` in
+allow-headers) blocked the browser preflight. Agentic backend shipped FB-007
+to Railway. Orchestrator confirmed via direct curl:
+```
+access-control-allow-headers: content-type,x-api-key,authorization,idempotency-key,request-id
+```
+
+Orchestrator then re-ran `flow-a-live.spec.ts` to upgrade the Loop 3 judgment
+to FULL PASS and got **1 pass / 1 fail** — CORS resolved, new defect (FR-6)
+exposed.
+
+### 14.2 FR-6 diagnosis
+
+**Failing assertion** (`tests/flow-a-live.spec.ts:119`):
+```
+expect(received, `no swatch buttons rendered...`).toBeGreaterThan(0)
+Received: 0
+```
+
+**First scenario passed** (same file, line 19 — "page loads + regenerate + no
+console errors against live API"). This is end-to-end proof that the live
+flow works: the scenario presses `r`, waits for `cpa [SEED]` title to settle
+to a valid Crockford Base32 13-char seed, presses `r` again, waits for title
+change. Both succeed. No `TypeError`, no "undefined hex" crashes.
+
+**Live debug capture from the network-smoke scenario (Phase 2 diagnostics)**:
+```
+API requests seen: [
+  "REQ POST .../api/v1/theme/generate",
+  "REQ POST .../api/v1/theme/generate",
+  "REQ POST .../api/v1/analyze/contrast-matrix",
+  "REQ POST .../api/v1/analyze/explain",
+  "REQ POST .../api/v1/analyze/contrast-matrix",
+  "REQ POST .../api/v1/analyze/explain"
+]
+theme response body keys: ['object', 'id', 'createdAt', 'mode', 'primaryInput',
+  'primitive', 'semantic', 'quality', 'wcag', 'warnings', 'framework',
+  'generatedAt', 'extendedSemantic', 'seed', 'slotSource']
+themeBundle object field: themeBundle
+has primitive: true
+```
+
+The backend responds correctly, the adapter receives a valid themeBundle,
+the adapter flattens it to a 5-color PaletteResource, the store sets it,
+PaletteDisplay maps it, ColorSwatch renders — all of this works. The **only**
+thing broken is the Playwright selector at line 117:
+```ts
+const swatchButtons = page.locator('button[aria-label*="copy" i]');
+```
+which matches **zero** elements in the app DOM (confirmed via
+`grep -rn 'aria-label.*copy' src/` returning zero app matches).
+
+What ColorSwatch actually emits:
+```tsx
+aria-label={`color ${index + 1} of 5: hex ${color.hex}, oklch ..., hsl ...`}
+```
+
+Root cause: Loop 3 authored the test without ever running it against a live
+browser (CB-002 blocked that), so the placeholder "copy" selector was never
+validated against the real DOM.
+
+### 14.3 Fix
+
+Test-only change. Zero `src/` modifications.
+
+```ts
+// Before (Loop 3):
+const swatchButtons = page.locator('button[aria-label*="copy" i]');
+const count = await swatchButtons.count();
+expect(count, `no swatch buttons rendered...`).toBeGreaterThan(0);
+
+// After (Loop 4 FR-6):
+const swatchButtons = page.locator('button[aria-label*="of 5: hex" i]');
+const count = await swatchButtons.count();
+expect(count, `no swatch buttons rendered (expected 5 from adapter output)...`).toBe(5);
+```
+
+`.toBe(5)` tightens the contract to the exact expected swatch count from the
+adapter output — a future drop from 5 to 4 or 6 would also fail the gate.
+
+### 14.4 Verification evidence
+
+**14.4.1 Flow A live browser smoke (FR-6 gate)** — post-fix run:
+```
+$ npx playwright test tests/flow-a-live.spec.ts --config playwright.live.config.ts
+
+  ok 1 [chromium-live] › Flow A — live backend smoke (MSW off) › page loads + regenerate + no console errors against live API (773ms)
+  ok 2 [chromium-live] › Flow A — live backend smoke (MSW off) › network smoke — real /theme/generate returns themeBundle and adapter works (8.5s)
+
+  2 passed (12.8s)
+```
+
+**14.4.2 Flow D FR-1 regression** — untouched, still passing:
+```
+$ npx playwright test tests/flow-d.spec.ts tests/theme-bundle-adapter.spec.ts
+
+  ok 1 › ?seed=XXX on mount populates store before first regenerate (467ms)
+  ok 2 › pressing r updates URL with a new valid 13-char Base32 seed (701ms)
+  ok 3 › ?mode=light on mount applies light mode (356ms)
+  ok 4 › invalid seed in URL falls back gracefully (375ms)
+  ok 5 › mode default (dark) is omitted from URL (741ms)
+  ok 6 › live /theme/generate returns themeBundle shape (186ms)
+  ok 7 › adapter flattens live themeBundle to PaletteResource with 5 valid colors (118ms)
+  ok 8 › adapter is deterministic for fixed {primary, seed} (115ms)
+  ok 9 › adapter handles stub themeBundle without crashing (5ms)
+
+  9 passed (6.5s)
+```
+
+**14.4.3 Production build**:
+```
+$ npm run build
+  ✓ built in 1.98s
+  dist/assets/index-BWTbsmnl.css  43.26 kB │ gzip: 19.50 kB
+  dist/assets/index-Dn94mA0V.js  207.72 kB │ gzip: 64.68 kB
+  0 errors, 0 warnings
+```
+
+Identical bundle size to 0.1.2 — confirms zero src/ changes.
+
+**14.4.4 Doctrine greps**:
+```
+$ Grep Seamless|Empower|Revolutionize|혁신적인|새로운 차원의  (src/)
+  No files found
+```
+
+Clean.
+
+### 14.5 Files changed in Loop 4
+
+| File | Change | Notes |
+|------|--------|-------|
+| `tests/flow-a-live.spec.ts` | Retargeted swatch selector + count assertion | Lines 113-124, comment block explaining the mismatch |
+| `handoff/works-to-guard/status.json` | version 0.1.3, loop 4, fix_loop_count 4 | whole file |
+| `handoff/works-to-guard/changelog.md` | Prepended 0.1.3 Loop 4 section | top |
+| `handoff/works-to-guard/fix-report.md` | Prepended Loop 4 FR-6 section | top |
+| `handoff/works-to-guard/self-test-report.md` | This §14 | bottom |
+
+**NOT touched (preserves Loop 1/2/3 PASS criteria)**:
+- `src/lib/api-client.ts` — Loop 3 adapter wiring intact
+- `src/lib/theme-bundle.ts` — Loop 3 adapter intact
+- `src/lib/actions.ts` — regeneratePalette call shape intact
+- `src/state/store.ts` — setPalette intact
+- `src/components/PaletteDisplay.tsx` — rendering intact
+- `src/components/ColorSwatch.tsx` — untouched (DOM nesting warning noted for future loop, out of FR-6 scope)
+- `src/hooks/use-url-sync.ts` — FR-1 Loop 2 fix intact
+- `src/mocks/stub-data.ts`, `src/mocks/handlers.ts` — Loop 3 MSW parity intact
+- `tests/flow-d.spec.ts` — FR-1 regression guard intact, 5/5 PASS
+- `tests/theme-bundle-adapter.spec.ts` — FR-4 regression guard intact, 4/4 PASS
+- `playwright.config.ts` — MSW-on canonical config untouched
+
+### 14.6 Secondary observation (FLAGGED, NOT FIXED)
+
+`ColorSwatch.tsx` nests a `<button>` (lock toggle, line 84) inside the main
+swatch `<button>` (line 27). React emits `console.error`:
+```
+Warning: validateDOMNesting(...): <button> cannot appear as a descendant of
+<button>.  at button / at div / at div / at button / at ColorSwatch
+```
+
+This is an HTML validity + accessibility issue (screen readers may
+mis-announce the control; browsers may collapse the inner button into the
+outer click area inconsistently). It dates from Loop 1/2 original authoring.
+
+**Why NOT fixed in Loop 4**: strictly out of FR-6 scope. The Orchestrator
+briefing explicitly says "Scope STRICTLY FR-6. Do not touch Loop 1/2/3 items."
+This warning does NOT affect rendering, data flow, the FR-6 assertion, or any
+current test outcome — the `fatal` filter at `flow-a-live.spec.ts:122` uses
+regex `/PAGEERROR|Cannot read propert|undefined.*hex|TypeError/i` and does
+not match the nesting warning.
+
+**Recommended Loop 5** (or post-release polish): restructure ColorSwatch so
+the lock toggle is a sibling `<button>` absolutely positioned over the swatch
+instead of nested. Est. 15 min. Non-blocking.
+
+### 14.7 Loop 4 fixLoopCount
+
+Loop 3 → Loop 4. fixLoopCount=3 → 4/7. Still below the 7-loop escalation cap.
+

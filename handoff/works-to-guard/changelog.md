@@ -1,5 +1,79 @@
 # Changelog — color-palette-api frontend · Sprint 1
 
+## 0.1.3 — 2026-04-09 · Sprint 1 Loop 4 fix (FR-6)
+
+Guard Loop 3 returned CONDITIONAL PASS pending a post-CORS-fix upgrade run of
+`flow-a-live.spec.ts`. After Agentic FB-007 landed CORS allow-headers for
+`idempotency-key` + `request-id`, Orchestrator re-ran the live smoke and got
+**1 pass / 1 fail** — exposing a new defect (FR-6) that Loop 3 could not have
+detected because CB-002 CORS blocked the browser flow before the assertion
+was ever reached.
+
+### Fixed
+
+- **FR-6 (CRITICAL, FE-DEFECT) — Flow A live browser smoke: wrong swatch selector.**
+  - Failing test: `tests/flow-a-live.spec.ts:76` ("network smoke — real
+    /theme/generate returns themeBundle and adapter works").
+  - Failure site: line 117 `const swatchButtons = page.locator('button[aria-label*="copy" i]');`
+    → `count` always 0 → `toBeGreaterThan(0)` fails with "no swatch buttons
+    rendered".
+  - **Root cause — test selector authored against an imaginary DOM.** Loop 3
+    wrote the assertion without running the live test (CORS blocked it) and
+    picked a selector that does not exist anywhere in the app. `ColorSwatch.tsx:34`
+    sets `aria-label="color N of 5: hex #RRGGBB, oklch ..., hsl ..."`. The copy
+    interactions are on `<span onClick>` elements, **not** on buttons with a
+    "copy" aria-label. A global grep for `aria-label.*copy` in `src/` returns
+    zero matches.
+  - **Ground-truth evidence — the rendering, adapter, store, and data flow ALL
+    work correctly end-to-end in the live browser.** The Playwright run
+    captured:
+    - 2× `POST /api/v1/theme/generate` (initial mount + FR-1 URL-sync regenerate)
+    - 2× `POST /api/v1/analyze/contrast-matrix`
+    - 2× `POST /api/v1/analyze/explain`
+    - `themeBundle object field: themeBundle`, `has primitive: true`
+    - First scenario ("page loads + regenerate + no console errors") **PASSED**
+      — proves the full chain (api-client → theme-bundle adapter → store →
+      PaletteDisplay → ColorSwatch) works against the live Railway backend with
+      the exact `actions.ts` call shape `{ primary, mode, semanticTokens, seed }`.
+    - No `TypeError`, no `Cannot read properties of undefined (reading 'hex')`.
+  - **Fix (test-only, zero src/ changes)**: retargeted the assertion to the
+    real swatch aria-label:
+    ```ts
+    const swatchButtons = page.locator('button[aria-label*="of 5: hex" i]');
+    const count = await swatchButtons.count();
+    expect(count, ...).toBe(5);
+    ```
+    Tightened to `.toBe(5)` (exact expected swatch count from the 5-color
+    adapter output) instead of `.toBeGreaterThan(0)` so a future drop from 5 to
+    4 or 6 swatches would be caught.
+  - **Files changed**: `tests/flow-a-live.spec.ts` only.
+  - **No src/ code changed** — Loop 3's adapter/store/actions/api-client wiring
+    is all correct; FR-6 was a test-authoring defect, not a runtime defect.
+
+### Preserved (regression-clean)
+
+- Flow D URL round-trip: **5/5 PASS** (FR-1 Loop 2 intact).
+- theme-bundle adapter unit + live smoke: **4/4 PASS** (FR-4 Loop 3 intact).
+- flow-a-live (LIVE Railway, MSW off): **2/2 PASS** (new post-Loop-3 gate).
+- Doctrine greps (Seamless/Empower/Revolutionize/etc.): clean.
+- Build: 0 errors, 0 warnings, 207.72 kB raw / 64.68 kB gzipped — identical to
+  0.1.2 (no src/ changes).
+- 21 keyboard shortcuts, 11 consumer sites, IDE tool-window layout, design
+  tokens, JetBrains Mono + IBM Plex Sans, terminal caret animation, MSW stub
+  sync from Loop 3: all preserved.
+
+### Secondary observation (NOT in FR-6 scope, NOT touched)
+
+- `ColorSwatch.tsx` nests a `<button>` (the lock toggle at line 84) inside the
+  main swatch `<button>` (line 27). React emits `Warning: validateDOMNesting:
+  <button> cannot appear as a descendant of <button>` at console.error level.
+  This is a real accessibility/HTML-validity issue dating from Loop 1/2, but
+  it does NOT affect rendering, data flow, the FR-6 assertion, or any current
+  test outcome. The `fatal` filter at `flow-a-live.spec.ts:122` uses regex
+  `/PAGEERROR|Cannot read propert|undefined.*hex|TypeError/i` which does not
+  match the DOM nesting warning. Flagging for a future loop (likely Loop 5 or
+  a post-release polish pass).
+
 ## 0.1.2 — 2026-04-09 · Sprint 1 Loop 3 fix (FR-4)
 
 Guard Loop 2 returned FAIL with one new CRITICAL item (FR-4). Loop 3 addresses
