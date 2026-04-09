@@ -1,0 +1,175 @@
+@import './tokens.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-base);
+    color: var(--fg-primary);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: var(--leading-snug);
+    font-feature-settings: 'calt' 0, 'liga' 0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: var(--accent-primary);
+    color: var(--fg-inverse);
+  }
+
+  /* Global focus-visible — 2px mint-cyan ring, keyboard-only */
+  :focus {
+    outline: none;
+  }
+  :focus-visible {
+    outline: 2px solid var(--border-accent);
+    outline-offset: 2px;
+  }
+
+  /* Scrollbars styled for dark mode */
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: var(--bg-elevated);
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: var(--radius-xs);
+  }
+
+  /* Skip-to-content link — visually hidden until focus */
+  .skip-to-content {
+    position: absolute;
+    top: -100px;
+    left: var(--space-2);
+    z-index: 9999;
+    padding: var(--space-2) var(--space-4);
+    background-color: var(--accent-primary);
+    color: var(--fg-inverse);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    text-decoration: none;
+    border-radius: var(--radius-xs);
+  }
+  .skip-to-content:focus,
+  .skip-to-content:focus-visible {
+    top: var(--space-2);
+  }
+}
+
+@layer components {
+  /* Bordered panel — elevation via border, not shadow */
+  .panel {
+    background-color: var(--bg-elevated);
+    box-shadow: var(--elevation-flat);
+  }
+  .panel-raised {
+    background-color: var(--bg-raised);
+    box-shadow: var(--elevation-raise);
+  }
+
+  /* IDE-style tool window layout — grid with named areas */
+  .app-shell-grid {
+    display: grid;
+    grid-template-columns: 280px 1fr 360px;
+    grid-template-rows: 44px 1fr 180px;
+    grid-template-areas:
+      'header header header'
+      'left main right'
+      'left bottom right';
+    height: 100vh;
+    width: 100vw;
+    background-color: var(--bg-base);
+  }
+  @media (max-width: 1200px) {
+    .app-shell-grid {
+      grid-template-columns: 280px 1fr;
+      grid-template-areas:
+        'header header'
+        'left main'
+        'left bottom';
+    }
+    .app-shell-grid > .area-right {
+      display: none;
+    }
+  }
+  @media (max-width: 900px) {
+    .app-shell-grid {
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        'header'
+        'main'
+        'bottom';
+    }
+    .app-shell-grid > .area-left {
+      display: none;
+    }
+  }
+
+  .area-header {
+    grid-area: header;
+    border-bottom: 1px solid var(--border-base);
+    background-color: var(--bg-elevated);
+  }
+  .area-left {
+    grid-area: left;
+    border-right: 1px solid var(--border-base);
+    background-color: var(--bg-elevated);
+    overflow: auto;
+  }
+  .area-main {
+    grid-area: main;
+    overflow: auto;
+    padding: var(--space-6);
+  }
+  .area-right {
+    grid-area: right;
+    border-left: 1px solid var(--border-base);
+    background-color: var(--bg-elevated);
+    overflow: auto;
+    padding: var(--space-5);
+  }
+  .area-bottom {
+    grid-area: bottom;
+    border-top: 1px solid var(--border-base);
+    background-color: var(--bg-elevated);
+    overflow: auto;
+    padding: var(--space-4);
+  }
+
+  /* Keycap hint — [R] styled as accent chip */
+  .keycap {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--space-1);
+    border: 1px solid var(--border-accent);
+    color: var(--accent-primary);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: 1.4;
+    letter-spacing: var(--tracking-hex);
+    border-radius: var(--radius-xs);
+    background-color: transparent;
+  }
+}

@@ -1,0 +1,189 @@
+/* Design tokens — color-palette-api frontend
+ * Source: handoff/lab-to-works/design-system-spec.md
+ * Philosophy: brutalist + code-editor, dark-first, mint-cyan accent, sharp corners, NO shadows.
+ */
+
+:root,
+[data-theme='dark'] {
+  /* Background ramps */
+  --bg-base: #0b0c10;
+  --bg-elevated: #14161b;
+  --bg-raised: #1b1e25;
+  --bg-overlay: rgba(11, 12, 16, 0.95);
+
+  /* Foreground */
+  --fg-primary: #e8eaed;
+  --fg-secondary: #a8adb8;
+  --fg-tertiary: #6b7280;
+  --fg-inverse: #0b0c10;
+
+  /* Borders */
+  --border-base: #272a33;
+  --border-strong: #3a3e4a;
+  --border-accent: #7ae4c3;
+
+  /* Accent */
+  --accent-primary: #7ae4c3;
+  --accent-primary-dim: #4ba889;
+
+  /* Semantic */
+  --semantic-success: #7ae4c3;
+  --semantic-warning: #e8b84b;
+  --semantic-error: #eb5757;
+  --semantic-info: #8bb4f0;
+
+  /* Fonts */
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', 'Menlo', 'Consolas', monospace;
+  --font-sans: 'IBM Plex Sans', -apple-system, 'Segoe UI', system-ui, sans-serif;
+
+  /* Type scale (1.25 modular) */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+
+  /* Weights */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+
+  /* Line heights */
+  --leading-tight: 1.1;
+  --leading-snug: 1.3;
+  --leading-normal: 1.5;
+
+  /* Tracking */
+  --tracking-mono: 0;
+  --tracking-sans: -0.005em;
+  --tracking-hex: 0.02em;
+
+  /* Space (4px base grid) */
+  --space-px: 1px;
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  /* Panel padding */
+  --panel-padding-x: var(--space-4);
+  --panel-padding-y: var(--space-3);
+  --input-padding-x: var(--space-3);
+  --input-padding-y: var(--space-2);
+  --button-padding-x: var(--space-4);
+  --button-padding-y: var(--space-2);
+
+  /* Radius — sharp-first */
+  --radius-none: 0;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-full: 9999px;
+
+  /* Elevation — border-based, NOT shadows */
+  --shadow-none: none;
+  --elevation-flat: inset 0 0 0 1px var(--border-base);
+  --elevation-raise: inset 0 0 0 1px var(--border-strong);
+  --elevation-focus: 0 0 0 2px var(--border-accent);
+  /* The ONE exception — export drawer overlay backdrop */
+  --shadow-drawer: 0 24px 48px rgba(0, 0, 0, 0.48);
+
+  /* Motion — ≤200ms hard cap, no bounce */
+  --duration-instant: 0ms;
+  --duration-fast: 100ms;
+  --duration-normal: 150ms;
+  --duration-slow: 200ms;
+  --easing-linear: linear;
+  --easing-snap: cubic-bezier(0.2, 0, 0, 1);
+  --easing-in: cubic-bezier(0.4, 0, 1, 1);
+}
+
+[data-theme='light'] {
+  --bg-base: #fafaf7;
+  --bg-elevated: #f2f2ed;
+  --bg-raised: #e8e8e2;
+  --bg-overlay: rgba(250, 250, 247, 0.95);
+  --fg-primary: #0b0c10;
+  --fg-secondary: #4b5563;
+  --fg-tertiary: #9ca3af;
+  --fg-inverse: #fafaf7;
+  --border-base: #d4d4ce;
+  --border-strong: #a8a8a0;
+  --border-accent: #1f8f6e;
+  --accent-primary: #1f8f6e;
+  --accent-primary-dim: #4ba889;
+  --semantic-success: #1f8f6e;
+  --semantic-warning: #9a7a1f;
+  --semantic-error: #b42b2b;
+  --semantic-info: #2e5ea3;
+}
+
+/* Terminal-style hard blink — the Step 9 seed.
+ * 530ms on / 530ms off = 1060ms total, steps(1,end) = HARD, no fade. */
+@keyframes caret-blink {
+  0%,
+  49.99% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+.blinking-caret {
+  animation: caret-blink 1060ms steps(1, end) infinite;
+}
+
+/* Copy-button feedback — 120ms linear flash */
+@keyframes flash-feedback {
+  0% {
+    background-color: var(--accent-primary);
+    color: var(--fg-inverse);
+  }
+  100% {
+    background-color: transparent;
+    color: inherit;
+  }
+}
+.copy-flash {
+  animation: flash-feedback 120ms linear;
+}
+
+/* Export drawer slide-in from right */
+@keyframes drawer-slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.drawer-open {
+  animation: drawer-slide-in 150ms var(--easing-snap);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blinking-caret {
+    animation: none;
+  }
+  .drawer-open {
+    animation: none;
+  }
+  /* copy-flash preserved — functional feedback */
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+  }
+}

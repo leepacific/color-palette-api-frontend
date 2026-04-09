@@ -1,19 +1,10 @@
-# i18n-report — Color Palette API Frontend
+# i18n Report — Sprint 1
 
-> TODO: 해당 Works Lead가 작성. CTO가 Phase 6(통합) 전에 이 파일이 채워져 있어야 진행 가능. (i18n/performance는 조건부)
+**Lead**: n/a
+**Status**: **out of scope per PRD §10** (Sprint 1 explicit out-of-scope: i18n).
 
-## Role
-[Lead 역할명]
+All UI copy is English-only. Monospace ASCII tone is intentional to match the
+brutalist/code-editor identity. Adding i18n in a future sprint is mechanical:
+wrap copy in a translation function and add a language toggle.
 
-## 요약
-[3줄 이내]
-
-## 상세
-[본문]
-
-## 강령 검증
-[해당 강령 항목 자체 검증]
-
-## Self-Eval
-[체크리스트]
-
+No i18n work performed or required in Sprint 1.
