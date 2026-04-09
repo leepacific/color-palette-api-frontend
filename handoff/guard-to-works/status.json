@@ -2,7 +2,7 @@
   "state": "failed",
   "judgment": "FAIL",
   "judge": "Frontend Guard QA Director",
-  "timestamp": "2026-04-09T04:15:00Z",
+  "timestamp": "2026-04-09T04:14:42Z",
   "sprint": 1,
   "loop": 2,
   "mode": "A",
@@ -17,8 +17,14 @@
   "backend_contract_status": "frontend_mistyped",
   "senior_designer_test": "conditional_pass",
   "fix_requests_path": "handoff/guard-to-works/fix-requests.md",
-  "loop_2_resolved": ["FR-1", "FR-2", "FR-3"],
-  "loop_2_new": ["FR-4"],
+  "loop_2_resolved": [
+    "FR-1",
+    "FR-2",
+    "FR-3"
+  ],
+  "loop_2_new": [
+    "FR-4"
+  ],
   "primary_blocker": "FR-4 CRITICAL FE-DEFECT — frontend mistypes /theme/generate response as PaletteResource but live backend returns themeBundle. Every swatch-rendering component crashes at runtime against production. Loop 1 Guard miss (curl-only contract verification did not cross-check TypeScript consumer).",
   "notes": "Loop 2 fixed FR-1 (Flow D URL sync, Playwright 5/5 PASS independently re-run), FR-2 (changelog disclosure), FR-3 (Playwright + axe-core installed, axe wiring deferred to Sprint 2 — accepted). Build clean, bundle delta +0.62 kB gzip. Doctrine regression clean. BUT new FR-4 CRITICAL discovered: /theme/generate returns themeBundle (primaryInput + primitive.{primary,secondary,accent} buckets, no top-level colors[]) per docs/frontend-handoff.md:52 + api-contract.yaml:730-747. Frontend types it as PaletteResource and accesses pal.colors[...] throughout. MSW stub hid the defect in both vitest and new Playwright tests. Recommend Path A fix: switch Flow A to /palette/random?seed= (returns true PaletteResource, Loop 1 curl-verified). fixLoopCount=2/7 — room for Loop 3.",
   "author": "Frontend Guard QA Director"
