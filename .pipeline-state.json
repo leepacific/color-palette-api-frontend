@@ -1,8 +1,8 @@
 {
-  "phase": "Works",
-  "activeAgent": null,
-  "lastTransition": "fe-works-ready",
-  "lastTransitionTime": "2026-04-09T04:36:42Z",
+  "phase": "Guard",
+  "activeAgent": "Frontend Guard QA Director",
+  "lastTransition": "fe-guard-kickoff",
+  "lastTransitionTime": "2026-04-09T04:38:15Z",
   "callbackPending": null,
   "callbackId": null,
   "mode": "from-agentic",
