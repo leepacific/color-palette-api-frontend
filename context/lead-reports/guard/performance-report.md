@@ -157,3 +157,30 @@ Degraded behavior on old browsers: the block becomes focusable in tab order (no 
 ### Verdict
 
 PASS. Bundle health excellent.
+
+---
+
+## Loop 6 update (FB-009 + Doctrine 6b)
+
+| Metric | Loop 5 | Loop 6 | Delta |
+|---|---|---|---|
+| Raw bundle | 207.90 kB | 208.60 kB | +0.70 kB |
+| Gzipped bundle | 64.74 kB | 65.08 kB | +0.34 kB |
+| Build errors | 0 | 0 | - |
+| Vite warnings | 0 | 0 | - |
+| Build time | ~2.5s | 2.51s | - |
+
+Loop 6 adds an entire new module (src/lib/seed-to-primary.ts, ~90 lines of
+pure functions) plus 3 lines of import/use in actions.ts. Net gzipped
+delta: +0.34 kB (0.5% growth). Well within budget - no tree-shaking
+issues, no accidental dependency pulls. The new test files do not ship to
+production (tests/ excluded from Vite build).
+
+Live backend p95 for POST /theme/generate (observed during interactive-coverage
+spec): ~500-1500ms for initial palette, ~400-800ms for subsequent r presses.
+Within PRD Tier 1 latency budget.
+
+### Verdict
+
+PASS. Bundle health excellent. +0.34 kB gzipped for a new algorithmic module +
+54-element live coverage spec is a bargain.

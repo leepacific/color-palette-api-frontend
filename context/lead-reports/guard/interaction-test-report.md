@@ -186,3 +186,43 @@ The shadcn-slot demo block is `inert` + `aria-hidden`. Verified that Tab does no
 ### Verdict
 
 PASS. All interaction gates green. fixLoopCount=5/7. Sprint 1 ready for release approval gate.
+
+---
+
+## Loop 6 update (FB-009 + Doctrine 6b implementation)
+
+Loop 6 elevates interaction testing from "good" to "doctrine 6b compliant".
+New spec tests/interactive-coverage.spec.ts independently re-run by Guard
+against LIVE Railway backend: 11/11 PASS in 32.8s.
+
+### Named test results (independent Guard re-run)
+
+| # | Test | Result |
+|---|---|---|
+| 1 | enumerate every interactive element and write coverage report | PASS (54 elements) |
+| 2 | regenerate r key produces 3 visually distinct palettes in 3 presses (hard gate) | PASS |
+| 3 | regenerate space key produces distinct palettes (same as r) | PASS |
+| 4 | URL seed round-trip remains byte-identical under FB-009 | PASS |
+| 5 | different URL seeds produce different palettes | PASS |
+| 6 | digit keys 1-5 set focused swatch index | PASS |
+| 7 | l/u lock toggle preserves locked color across regenerate | PASS |
+| 8 | e key opens export drawer and renders code | PASS |
+| 9 | ? key opens help overlay; Escape closes it | PASS |
+| 10 | m key toggles dark/light mode (outcome: html/class changes) | PASS |
+| 11 | every rendered swatch button is click-exercisable without error | PASS |
+
+### 6c mutation sanity on the hard gate
+
+Mentally mutated regeneratePalette():
+- Return same palette every time -> Set.size === 1, test fails.
+- Primary derived from seed but seed never changed on r -> Set.size === 1, fails.
+- Math.random() ignores seed -> would pass Set check but fails URL seed round-trip test in same file.
+- Same palette 3 times in a row via caching -> per-press mutation check catches it.
+
+All three mutation classes caught by at least one assertion in the suite.
+
+### Verdict
+
+PASS unconditional. 6b gate is live and meaningful. All 11 named interaction
+contracts assert user-visible outcome, not mechanism. fixLoopCount=6/7, 1 loop
+headroom unused. Sprint 1 release approved from interaction perspective.

@@ -140,3 +140,21 @@ Verified explicit, unambiguous correction at `self-test-report.md:357-374`. Loop
 ### Verdict
 
 PASS. WCAG AA compliance is now actually verified, not assumed. No outstanding a11y items.
+
+---
+
+## Loop 6 update (FB-009 + Doctrine 6b)
+
+Loop 6 made zero changes to a11y-relevant surface area. Guard re-ran
+tests/a11y.spec.ts (MSW) -> 1/1 PASS, 0 serious / 0 critical axe violations
+on /. Loop 5 FR-8 (--fg-tertiary slate-400 contrast fix) and FR-7
+(ColorSwatch sibling layout) preserved verbatim. The new
+tests/interactive-coverage.spec.ts enumerated 54 interactive elements via
+DOM query; inspection of the generated test-results/interactive-coverage.md
+showed all ColorSwatch and lock-toggle buttons have aria-labels (e.g.
+"color 1 of 5: hex #..., oklch ..., hsl ..." and "lock color 1"). No new
+interactive elements were introduced without labels.
+
+### Verdict
+
+PASS. Loop 5 a11y posture intact. No regression from Loop 6 changes.

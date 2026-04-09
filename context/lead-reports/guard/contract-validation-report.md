@@ -246,3 +246,32 @@ Verified still emitted in `api-client.ts` request headers. Backend now accepts t
 ### Verdict
 
 PASS. No contract regressions. Live wire is green. CB-002 stays resolved. CB-003 (`/palette/random?seed=` non-determinism) remains a Sprint 2 backend item — not blocking because Path B adapter sidesteps it.
+
+---
+
+## Loop 6 update (FB-009 + Doctrine 6b)
+
+Loop 6 independently verified the live contract with real curl against Railway:
+
+- POST /api/v1/theme/generate with X-API-Key header: 200 OK, envelope
+  structure unchanged, primitive.{primary,secondary,accent}.500.{hex,rgb,hsl,oklch,name}
+  all present, primaryInput.hex present and reflects backend perturbation,
+  seed round-tripped in response.
+- tests/theme-bundle-adapter.spec.ts updated 2 stale hex expectations to
+  shape checks (because FB-008 backend now perturbs primaryInput.hex). Not
+  a contract regression - the backend is still returning the contracted
+  fields, only the specific hex value changed. Adapter behavior unchanged.
+- 3 different seeds produced 3 different palettes at the live endpoint:
+  - seed=ABCDEFGHJKMNP primary=#245EDB -> primary.500 #2D6FEF
+  - seed=ZYXWVTSRQPNMK primary=#1B0FC2 -> primary.500 #5A61F7
+  - seed=1234567890ABC primary=#C63F48 -> primary.500 #CC413F
+- Determinism direction 1: same request called twice -> byte-identical
+  primary.500, secondary.500, accent.500.
+
+CB-002 (envelope + X-API-Key) still resolved. CB-003 (/palette/random?seed=
+non-determinism) still deferred to Sprint 2 backend - not blocking.
+
+### Verdict
+
+PASS. Live wire still green. No contract regression. FB-008 backend
+perturbation working as designed.

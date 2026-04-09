@@ -154,3 +154,33 @@ None in Loop 5. The two follow-ups Works fixed (JsonSidebar contrast + Component
 ### Verdict
 
 PASS. All PRD §7 Tier 1 features are now verified with executed tests, not asserted with static review.
+
+---
+
+## Loop 6 update (FB-009 - PRD Tier 1 #6 user-value gap closed)
+
+Loop 6 retroactively closes a PRD Tier 1 gap that Loop 5 marked as PASS
+but post-release smoke testing exposed:
+
+PRD Tier 1 #6 - "pressing r generates a visibly different palette while
+maintaining URL seed round-trip determinism."
+
+Loop 5 verified the first half mechanically (r triggers POST with new seed,
+URL updates) but never verified the user-visible outcome. The backend
+seed-driven OKLCH perturbation (FB-008) produced mathematical variation on
+the fixed #0F172A input but the deltas were perceptually invisible.
+
+Loop 6 fix: src/lib/seed-to-primary.ts derives a dramatic primary hex from
+the seed on the client side before sending the request. Guard verified via
+live curl that 3 different derived-primary inputs return palettes from
+completely different color families (Blue, Purple-Blue, Red). Determinism
+preserved: same seed twice -> byte-identical backend output. URL round-trip
+preserved: Flow D spec 5/5 MSW PASS + 6a direction 1 test LIVE PASS.
+
+Tier 1 #6 now satisfies both halves of the requirement: visible variation +
+deterministic reproducibility.
+
+### Verdict
+
+PASS. All PRD Tier 1 features (1-11) verified with executed tests INCLUDING
+end-to-end user-visible outcome gates, not just mechanism gates.

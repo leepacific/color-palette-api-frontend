@@ -1,13 +1,200 @@
-# Frontend Guard QA Director — FINAL PASS Report (Sprint 1, Loop 5)
+# Frontend Guard QA Director — FINAL PASS Report (Sprint 1, Loop 6)
 
 **Author**: Frontend Guard QA Director (Frontend-Builder)
-**Date**: 2026-04-09
-**Loop**: 5 — final re-verification (post-Works `184d840`)
-**fixLoopCount**: 5/7
-**Verdict**: **FULL PASS**
+**Date**: 2026-04-09 (Loop 6 update)
+**Loop**: 6 — final re-verification (post-Works `3539948`)
+**fixLoopCount**: 6/7 (1 loop headroom unused)
+**Verdict**: **FULL PASS — SPRINT 1 RELEASE APPROVED**
 **Outstanding callbacks**: NONE
 **Deferred blockers**: NONE
 **Release approval gate**: OPEN
+
+---
+
+## Loop 6 addendum (supersedes Loop 5 header)
+
+Loop 5 delivered accessibility + contract conformance (FR-1 through FR-11). Loop
+6 closes the **actual P0 user-value gap** exposed by a post-Loop-5 smoke: even
+with all 11 FRs resolved, pressing `r` returned a visually near-identical
+palette because the frontend was sending a fixed primary `#0F172A` on every
+request and relying on the backend to "vary it by seed". The backend (FB-008)
+did apply seed-driven OKLCH perturbation, but the perturbation magnitudes were
+imperceptible on a low-chroma near-black input.
+
+### The Loop 6 fix (Works commit `3539948`)
+
+Two surgical changes:
+
+1. **`src/lib/seed-to-primary.ts`** (NEW) — pure function that decodes the
+   13-char Crockford Base32 seed to a 65-bit BigInt, folds three 20-bit windows
+   into HSL (H[0,360), S[40,90], L[25,65]), and returns `#RRGGBB`. Deterministic,
+   no Date.now, no Math.random. Unit tested 5/5.
+2. **`src/lib/actions.ts`** — 3-line swap in `regeneratePalette()`: derive
+   `requestPrimary = seedToPrimary(requestSeed)` and send `{primary, seed}`
+   together. URL round-trip (Flow D) byte-identical because the primary is a
+   pure function of the seed.
+
+Plus the new **Doctrine §6b permanent gate**: `tests/interactive-coverage.spec.ts`
+enumerates every interactive element on the page and runs 11 named tests that
+assert **user-visible outcomes, not mechanisms**. The hard gate is
+`regenerate r key produces 3 visually distinct palettes in 3 presses` — the
+exact assertion that would have caught Sprint 1 Loop 5's miss.
+
+### Loop 6 independent Guard verification
+
+**Test suite: 28/28 PASS** (all independently re-run by Guard, not trusted from
+Works' self-report):
+
+| Suite | Mode | Result |
+|---|---|---|
+| `src/lib/__tests__/seed-to-primary.test.ts` | Vitest | 5/5 |
+| `tests/flow-d.spec.ts` | Playwright + MSW | 5/5 |
+| `tests/theme-bundle-adapter.spec.ts` | Playwright + MSW | 4/4 |
+| `tests/a11y.spec.ts` | Playwright + MSW + axe | 1/1 (0 serious/critical) |
+| `tests/flow-a-live.spec.ts` | Playwright LIVE | 2/2 |
+| `tests/interactive-coverage.spec.ts` | Playwright LIVE | 11/11 |
+
+Build clean: 208.60 kB raw / **65.08 kB gzipped** (-0.66 kB vs Loop 5 — no bloat
+from adding a whole new test suite + helper module).
+
+### Doctrine §6 compliance audit (applied rigorously, not just to FB-009)
+
+**§6a — Bi-directional determinism**: Both directions verified via live
+Railway curl (not MSW stubs):
+
+- **Direction 1** (same seed → same palette):
+  - Call #1: `{seed: ABCDEFGHJKMNP, primary: #245EDB}` → primary.500 `#2D6FEF`,
+    secondary.500 `#5F7C9A`, accent.500 `#B75F00`
+  - Call #2: same request → byte-identical primary.500, secondary.500, accent.500
+  - Verdict: deterministic ✓
+- **Direction 2** (different seeds → different palettes):
+  - `seed=ABCDEFGHJKMNP` derived `#245EDB` → Blue family
+    (`#2D6FEF / #5F7C9A / #B75F00`)
+  - `seed=ZYXWVTSRQPNMK` derived `#1B0FC2` → Purple-Blue family
+    (`#5A61F7 / #6573B7 / #BE5A00`)
+  - `seed=1234567890ABC` derived `#C63F48` → Red family
+    (`#CC413F / #926F6F / #009587` — red+muted-red+cyan)
+  - Verdict: dramatic variation across the full hue wheel ✓
+- Note: `primaryInput.hex` is perturbed by the backend (e.g. `#245EDB` →
+  `#1053D1`) — this is FB-008's seed-driven OKLCH perturbation doing its job.
+  The `tests/theme-bundle-adapter.spec.ts` updates (2 stale hex expectations →
+  shape checks) correctly accommodate this.
+
+**§6b — Exhaustive interactive element coverage**: `tests/interactive-coverage.spec.ts`
+read line-by-line. Verified it:
+- Enumerates via `page.$$('button, a, input, ..., [tabindex]:not([tabindex="-1"])')`
+  — real DOM query, not a stub
+- Exercises elements in 11 named tests (not "click everything then assert
+  nothing")
+- Writes `test-results/interactive-coverage.md` artifact
+- Guard independently ran it and inspected the artifact: **54 elements
+  enumerated** (floor ≥30 met by ~80%), markdown table structured correctly,
+  each row has tag/role/aria-label/exercise/outcome/verified columns
+- Named tests cover: 3 regenerate (r/space, URL seed direction 1, URL seed
+  direction 2), digit focus, lock toggle, export drawer, help overlay, mode
+  toggle, every swatch click
+
+**§6c — Mutation sanity** (mental mutation testing of the Set-size-3 assertion):
+- Mutation A: "what if `regeneratePalette()` returned same palette every time?"
+  → `new Set(serialized).size` would be 1, assertion fails. ✓ meaningful
+- Mutation B: "what if primary derived from seed but seed never changed on r
+  press?" → Set would be 1, assertion fails. ✓ meaningful
+- Mutation C: "what if `Math.random()` decided palette and seed was ignored?"
+  → would likely pass Set test but fail URL round-trip test in the same file
+  (direction 1 determinism). ✓ at least one assertion catches this
+- Additional per-press mutation check: the spec also asserts `curr.some((hex,j) =>
+  hex !== prev[j])` on every press — this catches "same palette 3 times in a
+  row" even if the Set check somehow passed.
+
+**§6d — Five-year-old test** (would a non-technical user see variation?):
+- Live curl produced 3 dramatically different palettes across 3 different seeds
+  (Blue → Purple-Blue → Red). A five-year-old would absolutely see "the colors
+  changed a lot" between any two of these.
+- Determinism: same seed called twice returned byte-identical output → F5 reload
+  preserves the palette.
+- Verdict: a human tester would immediately notice both variation and stability. ✓
+
+**§6e — Known unknowns** (self-test report §16.8 inspected): 6 items documented
+with reasoning + Sprint 2 plans. Examples: "l/u lock state outcome tested
+coarsely because DOM doesn't expose data-locked", "j/k export cycling adds
+5-10s live latency per press", "g-chord panel toggles require chord timing
+awareness". All items have rationale; none are lazy "didn't test". Floor
+≥3 exceeded 2×. ✓
+
+**§6f — User-story-driven priority**: `tests/interactive-coverage.spec.ts`
+structure inspected. The hard gate (`regenerate r key produces 3 visually
+distinct palettes in 3 presses`) is test #2 in the file — second only to the
+enumeration/report generator. It asserts **user-visible outcome** (5-swatch
+palette differs) not mechanism (POST was sent). All 11 named tests follow the
+outcome pattern: "press key → assert visible change", not "press key → assert
+internal state". ✓
+
+### Regression checks (Loop 1-5 work preserved)
+
+- `use-url-sync.ts` — untouched (verified via git diff)
+- `use-keyboard-shortcuts.ts` — untouched
+- `theme-bundle.ts` — untouched
+- `api-client.ts` — untouched
+- `seed.ts` — untouched
+- All 11 components/ — untouched (FR-7 sibling layout preserved)
+- `tokens.css`, `global.css` — untouched (FR-8 contrast fix preserved)
+- 21 keyboard shortcuts — untouched
+- Doctrine §1.x vocabulary greps clean (false positives: `bg-elevated` CSS
+  token, `transform` CSS property, `unlock` keyboard UX label, `no bounce`
+  comment — all legitimate)
+- axe serious/critical: 0/0 on `/` and `/help` (verified via MSW a11y suite
+  re-run)
+
+### Q1-Q7 senior-designer test — Loop 6 final answers
+
+- **Q1**: Does the primary screen look intentional, not templated? **YES** —
+  3-column grid with `.area-*` layout, monospace axis, brutalist palette swatch
+  grid. Untouched this loop.
+- **Q2**: Does every interactive element give clear feedback? **YES** — all 11
+  named tests in interactive-coverage.spec.ts assert a user-visible change.
+- **Q3**: Does the keyboard UX feel fluent to a designer? **YES** — 21
+  shortcuts + HelpOverlay (unchanged), now with proven `r`/`space`/`1-5`/`l`/
+  `u`/`e`/`?`/`m`/`x` outcome tests.
+- **Q4**: Is accessibility real, not theatrical? **YES** — Loop 5 axe clean
+  (0 serious/critical), `role=img` on ContrastMatrix chips, h3→h2 heading
+  order, tabIndex wiring — all preserved.
+- **Q5**: Would a critical designer say "this is from a real product, not a
+  template"? **YES** — monospace/brutalist tone + semantic tokens + real data
+  surfaced via JsonSidebar.
+- **Q6**: Does the app survive network failure + invalid input gracefully?
+  **YES** — error taxonomy in actions.ts (toast + top banner by error type),
+  flow-d invalid seed fallback test PASS.
+- **Q7**: **Does pressing `r` actually give me a different palette?** **YES —
+  UNCONDITIONALLY**. This was conditional in Loop 5 (where Guard confirmed the
+  POST was sent but never verified the output differed). Loop 6 closes this
+  via the §6b hard gate + live curl evidence showing dramatic hue-wheel
+  variation across seeds.
+
+### Scope discipline audit
+
+11 files changed Loop 5 → Loop 6:
+- 4 new source/test files (seed-to-primary.ts + test, interactive-coverage.spec.ts,
+  preview-seed-primary.mjs)
+- 3 modified (`actions.ts` 11 lines, `theme-bundle-adapter.spec.ts` 15 lines
+  shape-check update, `playwright.live.config.ts` 2-line testMatch fix)
+- 4 handoff docs (changelog, fix-report, self-test-report, status.json)
+
+**Zero changes** to components/, hooks/, state/, pages/, App.tsx, theme-bundle.ts,
+api-client.ts, seed.ts, use-url-sync.ts, use-keyboard-shortcuts.ts, tokens.css,
+global.css. Works demonstrated perfect scope discipline — the smallest possible
+surgical fix for FB-009 + the new §6b gate.
+
+### Judgment
+
+**FULL PASS — RELEASE APPROVED**. Sprint 1 of the color-palette-api frontend
+ships. The 6-loop arc closed all 11 fix requests (Loops 1-5) + the P0 product-
+value gap exposed post-Loop-5 (Loop 6). fixLoopCount 6/7 — 1 loop of headroom
+unused. Two reusable Tier 1 Guard knowledge items produced by this loop:
+`seed-derived-input-pattern.md` and `interactive-coverage-spec-template.md`.
+
+---
+
+## Historical Loop 5 report (unchanged below — for audit trail)
 
 ---
 

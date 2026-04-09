@@ -149,3 +149,26 @@ The inert + aria-hidden block is still **visually rendered** (CSS `inert` doesn'
 ### Verdict
 
 PASS. Doctrine intact. No AI-cliché regression. Brutalist + IDE + mint-cyan aesthetic preserved through 5 loops of refactoring.
+
+---
+
+## Loop 6 update
+
+No visual token changes. No typography changes (IBM Plex Sans + JetBrains Mono
+preserved). No color token changes beyond what FB-008/FB-009 produces at the
+data layer - the visual shell is untouched.
+
+Doctrine vocabulary grep regression re-run: 5 file hits for seamless|empower|
+revolutionize|unlock|transform|elevate, all false positives (bg-elevated CSS
+token, CSS transform property, unlock in keyboard UX label, "no bounce"
+comment). 1 hit for bounce in tokens.css line 102, a comment "Motion - 200ms
+hard cap, no bounce". False positive. No purple-blue gradient. No AI
+vocabulary. No Inter-alone.
+
+Brutalist IDE + mint-cyan aesthetic preserved. The derived primaries FB-009
+injects are generator outputs (user-facing palette data), not chrome/shell
+colors - they do not affect doctrine compliance.
+
+### Verdict
+
+PASS. Doctrine intact through loop 6. No visual regression.
