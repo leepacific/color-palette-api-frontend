@@ -2,8 +2,8 @@
   "state": "ready",
   "version": "2.0.0",
   "sprint": 2,
-  "author": "frontend-lab-ceo",
-  "timestamp": "2026-04-10T12:00:00Z",
+  "author": "Frontend Lab CEO",
+  "timestamp": "2026-04-10T11:04:49Z",
   "reviewer": null,
   "review_timestamp": null,
   "notes": "Sprint 2 amendment complete. 3 new components (C9 HarmonySelector, C10 QualityThreshold, D7 GenerationMeta), 2 new URL params, 3 new keyboard shortcuts, 2 new UX flows (E, F). 0 endpoint gaps — v1.6.0 confirmed deployed with harmonyHint + minQuality params. Auth issue (U1) persists. Mode A (single-agent, disclosed). All 9 deliverables amended with Sprint 2 sections prepended to Sprint 1 content.",
@@ -35,10 +35,24 @@
   "doctrine_self_eval": "pass",
   "q1_q7_self_eval": "pass",
   "sprint2_scope": {
-    "new_components": ["C9-HarmonySelector", "C10-QualityThreshold", "D7-GenerationMeta"],
-    "new_url_params": ["harmony", "minQuality"],
-    "new_keyboard_shortcuts": ["h", "H", "q"],
-    "new_flows": ["Flow E (tune harmony)", "Flow F (set quality)"],
+    "new_components": [
+      "C9-HarmonySelector",
+      "C10-QualityThreshold",
+      "D7-GenerationMeta"
+    ],
+    "new_url_params": [
+      "harmony",
+      "minQuality"
+    ],
+    "new_keyboard_shortcuts": [
+      "h",
+      "H",
+      "q"
+    ],
+    "new_flows": [
+      "Flow E (tune harmony)",
+      "Flow F (set quality)"
+    ],
     "endpoint_gaps": 0,
     "new_dependencies": 0,
     "estimated_bundle_addition_kb": 6
