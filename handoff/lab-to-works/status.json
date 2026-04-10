@@ -1,13 +1,14 @@
 {
   "state": "ready",
-  "version": "1.0.0",
+  "version": "2.0.0",
+  "sprint": 2,
   "author": "frontend-lab-ceo",
-  "timestamp": "2026-04-09T01:20:00Z",
+  "timestamp": "2026-04-10T12:00:00Z",
   "reviewer": null,
   "review_timestamp": null,
-  "notes": "Sprint 1 spec complete. 9 deliverables in lab-to-works/. 8 lead reports in context/lead-reports/lab/. 10-step narrative flow executed (design_philosophy_mode: on). Authored Mode A (single-agent with explicit disclosure per spawn prompt permission). Endpoint gaps are deployment-lag + auth-bootstrap (CB-001 in frontend-builder-to-agentic/) — external blockers, not contract gaps. Works can begin with MSW/local-backend mitigation; Guard verification blocked until CB-001 resolved.",
-  "endpoint_gaps_resolved": false,
-  "callback_id": "CB-001-sprint6-deploy-and-auth",
+  "notes": "Sprint 2 amendment complete. 3 new components (C9 HarmonySelector, C10 QualityThreshold, D7 GenerationMeta), 2 new URL params, 3 new keyboard shortcuts, 2 new UX flows (E, F). 0 endpoint gaps — v1.6.0 confirmed deployed with harmonyHint + minQuality params. Auth issue (U1) persists. Mode A (single-agent, disclosed). All 9 deliverables amended with Sprint 2 sections prepended to Sprint 1 content.",
+  "endpoint_gaps_resolved": true,
+  "callback_id": null,
   "deliverables": [
     "frontend-prd.md",
     "design-system-spec.md",
@@ -32,5 +33,14 @@
   "design_philosophy_mode": "on",
   "trust_mode": "standard",
   "doctrine_self_eval": "pass",
-  "q1_q7_self_eval": "pass"
+  "q1_q7_self_eval": "pass",
+  "sprint2_scope": {
+    "new_components": ["C9-HarmonySelector", "C10-QualityThreshold", "D7-GenerationMeta"],
+    "new_url_params": ["harmony", "minQuality"],
+    "new_keyboard_shortcuts": ["h", "H", "q"],
+    "new_flows": ["Flow E (tune harmony)", "Flow F (set quality)"],
+    "endpoint_gaps": 0,
+    "new_dependencies": 0,
+    "estimated_bundle_addition_kb": 6
+  }
 }

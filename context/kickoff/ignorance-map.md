@@ -3,7 +3,8 @@
 **Mode**: from-agentic
 **design_philosophy_mode**: on
 **trust_mode**: standard
-**Authored**: 2026-04-09 by Frontend Lab CEO (Mode A — single-agent authoring with explicit disclosure, per spawn prompt permission)
+**Authored**: 2026-04-09 by Frontend Lab CEO (Mode A — Sprint 1)
+**Sprint 2 amendment**: 2026-04-10 by Frontend Lab CEO (Mode A — Sprint 2)
 
 ## Known (high confidence)
 
@@ -46,6 +47,22 @@
 - Maximum palette size for contrast matrix → types say `1..=16`. Hard-limit UI at 16.
 - Default seed generation → backend echoes seed; frontend generates one client-side if absent (13-char Crockford Base32, 6-line helper).
 - Rate limit header presence → Sprint 5 known gap says headers absent until follow-up sprint; UI tolerates absence and falls back to observing 429 + `Retry-After`.
+
+---
+
+## Sprint 2 Ignorance Update
+
+### U2 RESOLVED
+- Backend v1.6.0 deployed (confirmed 2026-04-10). Production serves 30 paths. `harmonyHint`, `minQuality`, `maxRetries` request fields and `generationMeta` response field confirmed in OpenAPI spec. Orchestrator independently verified live response with `harmonyHint=triadic` + `minQuality=50`.
+
+### U1 PERSISTS
+- Auth issue unchanged. Admin API key still rejected. Works continues with MSW stubs.
+
+### Sprint 2 unknowns (all resolved)
+- How should harmony type selector look in brutalist aesthetic? → Resolved: segmented inline tag row with abbreviated labels, per design-language-architect assessment (terminal mode switch)
+- How should quality threshold input look? → Resolved: numeric input with step buttons, not browser range slider
+- Any new dependencies needed? → Resolved: no, existing React + Zustand + Tailwind sufficient
+- Any endpoint gaps for Sprint 2? → Resolved: 0 gaps, all params verified live
 
 ## Ignorance tier summary
 

@@ -1,6 +1,48 @@
 # Endpoint Gap Report — color-palette-api frontend (from-agentic mode)
 
 **Source**: `context/lead-reports/lab/endpoint-gap-report.md`
+**Sprint 2 amendment**: 2026-04-10
+
+---
+
+## Sprint 2 Amendment — Gap Analysis for harmonyHint + minQuality
+
+### Summary (Sprint 2)
+
+- **Contract-level gaps**: 0
+- **Deployment-level gaps**: 0 (v1.6.0 with Sprint 2 params confirmed deployed)
+- **Auth issues**: 1 CRITICAL (persists from Sprint 1 — admin key still rejected)
+
+### Sprint 2 Data Requirement Mapping
+
+| Frontend need | Component | Endpoint | Sprint 2 param | Deployed? |
+|---------------|-----------|----------|----------------|-----------|
+| Select harmony type | HarmonySelector (C9) | `POST /theme/generate` + `harmonyHint` field | `harmonyHint` (string enum) | **YES (v1.6.0)** |
+| Set quality threshold | QualityThreshold (C10) | `POST /theme/generate` + `minQuality` field | `minQuality` (float 0-100) | **YES (v1.6.0)** |
+| Display generation metadata | GenerationMeta (D7) | response field `generationMeta` | response-only | **YES (v1.6.0)** |
+
+### Verification (2026-04-10)
+
+```bash
+$ curl -s https://color-palette-api-production-a68b.up.railway.app/api/v1/openapi.json | python -c "import sys,json; print(json.load(sys.stdin)['info']['version'])"
+1.6.0
+```
+
+Production serves v1.6.0 with 30 paths (up from 27). The `harmonyHint`, `minQuality`, and `maxRetries` request fields + `generationMeta` response field are present in the OpenAPI spec.
+
+Orchestrator independently verified live response:
+```
+curl ... -d '{"primary":"#3B82F6","mode":"both","harmonyHint":"triadic","minQuality":50}'
+→ generationMeta: {qualityScore: 71.0, attempts: 1, harmonyUsed: "triadic"}
+```
+
+### Sprint 2 Verdict
+
+**0 contract gaps. 0 deployment gaps.** The Sprint 2 params are live and match the frontend spec exactly. No Callback A needed for Sprint 2.
+
+**Auth issue (U1)**: persists. The admin API key in `.env` is still rejected. Works continues with MSW stubs or local backend for development. This blocker is Sprint 1 scope and tracked separately.
+
+---
 
 ## Summary
 

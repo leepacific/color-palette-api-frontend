@@ -34,6 +34,18 @@ Items that may be promoted to `02-lab/knowledge/`, `03-works/knowledge/`, or `04
 - **Target knowledge file**: `02-lab/knowledge/design-patterns/dev-tool-brutalism.md` (sub-section)
 - **Promotion**: after Guard PASS.
 
+## Candidate 6 — "Terminal mode-switch" widget pattern for enum selectors (Sprint 2)
+
+- **L1 finding**: For developer tools with a brutalist aesthetic, enum selectors (like harmony type: 7 values) should be rendered as inline segmented tag rows with abbreviated labels (`[auto] [comp] [tri]`), NOT dropdowns. Dropdowns read as form-builder UI and break the terminal identity. The tag row pattern is (a) keyboard-navigable via arrow keys + cycle shortcut, (b) all options visible without interaction (Self-ness Principle 2.1 path proposal), (c) fits naturally in a TopBar "instrument panel" layout.
+- **Target knowledge file**: `02-lab/knowledge/design-patterns/dev-tool-brutalism.md` (sub-section: "Enum Selector Patterns")
+- **Promotion**: after Guard PASS on Sprint 2.
+
+## Candidate 7 — "Numeric input with step buttons" pattern for threshold controls (Sprint 2)
+
+- **L1 finding**: For threshold/range inputs in brutalist developer tools, browser-native `<input type="range">` sliders are un-styleable and break the identity. Instead, use a monospace numeric input with explicit `[+]` `[-]` step buttons (step size calibrated to the range — e.g., step=10 for 0-100). This gives: (a) exact value visibility (not slider thumb guessing), (b) keyboard-first interaction (Up/Down arrows), (c) consistent monospace rendering.
+- **Target knowledge file**: `02-lab/knowledge/design-patterns/dev-tool-brutalism.md` (sub-section: "Numeric Threshold Patterns")
+- **Promotion**: after Guard PASS on Sprint 2.
+
 ## Pending items for retrospective
 
 - [ ] Did the 10-step narrative flow add real value or was it ceremonial? (Q7 Self-ness)
@@ -41,3 +53,6 @@ Items that may be promoted to `02-lab/knowledge/`, `03-works/knowledge/`, or `04
 - [ ] Did developer-target copy (`token`, `slot`, `ramp`) read naturally or forced?
 - [ ] Did the U1 auth + U2 deployment gaps block Works or resolve cleanly via callback?
 - [ ] Did Mode A (single-agent authoring) produce Lead reports of comparable quality to actual spawn?
+- [ ] Sprint 2: Did the harmony selector tag row pattern feel natural in the TopBar?
+- [ ] Sprint 2: Did the quality threshold numeric input pattern feel terminal-native?
+- [ ] Sprint 2: Did generationMeta display add value or clutter?

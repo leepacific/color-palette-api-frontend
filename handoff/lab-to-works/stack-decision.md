@@ -1,6 +1,7 @@
 # Stack Decision — color-palette-api frontend
 
 **Source**: `context/lead-reports/lab/stack-evaluation-report.md`
+**Sprint 2 amendment**: 2026-04-10 — No stack changes. Sprint 2 adds 3 components using existing React + Zustand + Tailwind + shadcn patterns. No new dependencies required.
 
 ## Decision
 

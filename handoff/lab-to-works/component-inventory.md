@@ -2,7 +2,8 @@
 
 **Source**: `context/lead-reports/lab/component-inventory-report.md`
 
-Total: **23 components** (4 layout, 8 interactive, 6 data-display, 3 overlay, 2 utility).
+Total: **26 components** (4 layout, 10 interactive, 7 data-display, 3 overlay, 2 utility).
+Sprint 2 additions: C9 HarmonySelector, C10 QualityThreshold, D7 GenerationMeta.
 All data-dependent components have 4 states designed (§2.3 compliance).
 All interactive elements have 4 states designed (§2.4 compliance).
 
@@ -379,6 +380,88 @@ Renders `[R]` or `[G E]` in monospace with `--accent-primary` text and `--border
 
 ---
 
+---
+
+## Sprint 2 Amendment — New Components
+
+### C9. `<HarmonySelector>` — 4 states (interactive)
+
+```ts
+interface HarmonySelectorProps {
+  value: HarmonyHint;
+  onChange: (hint: HarmonyHint) => void;
+}
+
+type HarmonyHint =
+  | 'auto'
+  | 'complementary'
+  | 'analogous'
+  | 'triadic'
+  | 'split-complementary'
+  | 'tetradic'
+  | 'monochromatic';
+```
+
+**Visual**: inline segmented tag row in TopBar. Each tag is a monospace `<button>` inside `<div role="radiogroup">`. Active tag has `--border-accent` bottom border (2px) and `--accent-primary` text. Inactive tags: `--fg-secondary` text, `--border-base` bottom border.
+
+**Labels**: `[auto] [comp] [anal] [tri] [split] [tet] [mono]` — abbreviated for density. Full names available via `title` attribute.
+
+**States** (interactive, 4-state):
+- Default: `--fg-secondary` text, `--border-base` bottom
+- Hover: `--fg-primary` text, `--bg-raised` background
+- Active: `--accent-primary` text, `--border-accent` 2px bottom, `scale(0.98)` momentary
+- Focus-visible: 2px `--border-accent` outer ring (shared with all interactive elements)
+
+**Keyboard**: `h` cycles forward, `H` backward. Arrow keys navigate within radiogroup per ARIA pattern.
+
+### C10. `<QualityThreshold>` — 4 states (interactive)
+
+```ts
+interface QualityThresholdProps {
+  value: number;
+  onChange: (threshold: number) => void;
+}
+```
+
+**Visual**: terminal-style numeric readout — `quality [  0] [+] [-]`. The number is an editable `<input type="number">` styled as monospace inline text (3ch width, `--bg-raised`, `--border-base` border). `[+]` and `[-]` are step buttons that increment/decrement by 10. All in `--font-mono`, `--text-sm`.
+
+**Placement**: TopBar, right of `<HarmonySelector>`, inside the generation-params cluster.
+
+**States** (interactive, 4-state):
+- Default: `--fg-secondary` label, `--fg-primary` number
+- Hover: `--bg-raised` on step buttons, `--border-strong` on input
+- Active: `--border-accent` on input (typing), `scale(0.98)` on step button press
+- Focus-visible: 2px `--border-accent` outer ring on input or step buttons
+
+**Validation**: clamp to 0-100 on blur. Reject non-numeric input on keypress. Step buttons clamp at boundaries (0 min, 100 max).
+
+### D7. `<GenerationMeta>` — 4 states (data)
+
+```ts
+interface GenerationMetaProps {
+  meta: GenerationMeta | null;
+  state: 'default' | 'loading' | 'error';
+}
+
+interface GenerationMeta {
+  qualityScore: number;
+  attempts: number;
+  harmonyUsed: string;
+}
+```
+
+**Visual**: single-line status readout below PaletteDisplay composite score. `--font-mono`, `--text-xs`, `--fg-tertiary`. Content: `harmony: ${harmonyUsed} · quality: ${qualityScore} · attempts: ${attempts}`.
+
+**Click**: copies the full generationMeta JSON to clipboard with flash feedback.
+
+**Data states** (4-state):
+- **Default**: visible when meta is non-null; content as described
+- **Empty**: hidden (not rendered) when meta is null (Sprint 1 response without generationMeta)
+- **Loading**: inherits PaletteDisplay loading state (not independently loaded)
+- **Error**: inherits PaletteDisplay error state
+
+---
+
 ## State coverage matrix
 
 | # | Component | Interactive 4-state | Data 4-state | Note |
@@ -406,6 +489,9 @@ Renders `[R]` or `[G E]` in monospace with `--accent-primary` text and `--border
 | O3 | Toast | — | — | transient |
 | U1 | BlinkingCaret | — | — | decorative |
 | U2 | KeycapHint | — | — | decorative |
+| C9 | HarmonySelector | ✓ | — | Sprint 2 |
+| C10 | QualityThreshold | ✓ | — | Sprint 2 |
+| D7 | GenerationMeta | — | ✓ | Sprint 2 |
 
-**§2.3 compliance (data components)**: 6/6
-**§2.4 compliance (interactive components)**: 9/9 (8 core + ExportDrawer)
+**§2.3 compliance (data components)**: 7/7 (6 Sprint 1 + 1 Sprint 2)
+**§2.4 compliance (interactive components)**: 11/11 (9 Sprint 1 + 2 Sprint 2)

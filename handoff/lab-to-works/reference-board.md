@@ -1,7 +1,31 @@
 # Reference Board — color-palette-api frontend
 
 **Source**: `context/lead-reports/lab/reference-curation-report.md`
+**Sprint 2 amendment**: 2026-04-10
 **Doctrine compliance**: §3.1 (5+ references — 7 provided), §3.2 (distributed borrow — max concentration ~25%)
+
+---
+
+## Sprint 2 Amendment — Pattern Sources for New Controls
+
+No new references added. Sprint 2 components draw from existing references:
+
+### HarmonySelector pattern lineage
+- **Linear** (#1): segmented toggles in project views (Status, Priority) — inline keyboard-hinted tag rows
+- **Raycast** (#4): `[⌘1] [⌘2] [⌘3]` mode-switch bar at the top of results
+- **Differentiation from both**: our tags use abbreviated 3-5 char labels (`[comp]`, `[tri]`), shorter than either reference, reflecting the terminal-command abbreviation aesthetic (like `ls -la` not `list -long -all`)
+
+### QualityThreshold pattern lineage
+- **VSCode settings.json** (#3): numeric inputs with step controls in Settings UI
+- **Berkeley Graphics** (#7): confident use of single numerals as primary content
+- **Differentiation from both**: our input is inline in the TopBar (not a settings page), and the step size (10) is calibrated for the 0-100 quality range — not a generic +-1 stepper
+
+### GenerationMeta pattern lineage
+- **v0.dev** (#2): metadata lines below generated content (`tokens: 1,234 · model: gpt-4`)
+- **Linear** (#1): muted metadata under issue titles
+- **Differentiation from both**: ours is click-to-copy (developer muscle memory) and conditionally visible (only when generationMeta exists)
+
+---
 
 ## 7 references, Borrow / Avoid / Differentiate
 

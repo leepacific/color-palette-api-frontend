@@ -1,10 +1,129 @@
 # Frontend PRD — color-palette-api
 
-**Sprint**: 1
+**Sprint**: 2 (amendment to Sprint 1)
 **Status**: ready for Works Phase
-**Authored**: 2026-04-09, Frontend Lab CEO (Mode A)
+**Authored**: 2026-04-09 (Sprint 1), 2026-04-10 (Sprint 2 amendment)
+**Amended by**: Frontend Lab CEO (Mode A, disclosed)
 **design_philosophy_mode**: on
 **trust_mode**: standard
+
+---
+
+## Sprint 2 Amendment — Harmony + Quality Controls
+
+### S2.0 Origin
+
+Board Chairman request: "프런트엔드에서 내가 직접 composite score 임계값 설정하거나 색상 팔레트 픽업 이론을 선택할 수 없어서 불편해."
+
+Backend v1.6.0 (live on Railway) added two optional params to `POST /api/v1/theme/generate`: `harmonyHint` (string enum, 7 values) and `minQuality` (float 0-100) with `maxRetries` (int 1-10, default 5). Response gains `generationMeta` object when either is specified.
+
+### S2.1 New UI Control 1 — Harmony Type Selector (P0)
+
+**Component**: `<HarmonySelector>` (new, C9 in component-inventory)
+
+**Widget**: segmented inline tag row — `[auto] [comp] [anal] [tri] [split] [tet] [mono]` — rendered in monospace with `--border-accent` on the active tag. NOT a dropdown (dropdowns read as form-builder). NOT tabs (tabs imply panel switching). Terminal-mode-switch aesthetic: each tag is a clickable `<button>` in a `<div role="radiogroup">`.
+
+**Placement**: TopBar, right of seed display, left of mode toggle. Fits the "instrument panel" metaphor from design-language-report Step 1 (brass precision). The harmony selector IS a mode dial on the instrument.
+
+**Abbreviated labels** (screen width constraint + terminal aesthetic):
+| Value | Label | Title (tooltip) |
+|-------|-------|-----------------|
+| `auto` | `auto` | automatic harmony selection |
+| `complementary` | `comp` | complementary (opposite hues) |
+| `analogous` | `anal` | analogous (adjacent hues) |
+| `triadic` | `tri` | triadic (120-degree spacing) |
+| `split-complementary` | `split` | split-complementary |
+| `tetradic` | `tet` | tetradic (rectangular) |
+| `monochromatic` | `mono` | monochromatic (single hue) |
+
+**Behavior**:
+- Selecting a harmony type updates store `harmonyHint`
+- Next `regeneratePalette()` call includes `harmonyHint` in the API request body
+- Backend echoes `generationMeta.harmonyUsed` in response
+- ExplainPanel already renders harmony type from the explain response; with `harmonyHint` specified, the backend constrains to that harmony, so the explain panel naturally reflects the user's choice
+- Selection persists through regenerate cycles (store state, not ephemeral)
+- Works with lock preservation (FB-011): locked colors stay locked regardless of harmony type
+- Works with seed-derived primary (FB-009): seed drives primary, harmonyHint drives secondary derivation
+
+**URL sync**: `?harmony=triadic` added to URL via `use-url-sync.ts`. Default `auto` is omitted from URL (clean short URLs).
+
+**Keyboard**: `h` cycles harmony type forward through the 7 options. `H` (shift+h) cycles backward.
+
+**Accessibility**:
+- `role="radiogroup"` with `aria-label="harmony type"`
+- Each tag: `role="radio"`, `aria-checked`, keyboard arrows navigate within group
+- Focus-visible: 2px `--border-accent` outer ring per design-system-spec
+
+### S2.2 New UI Control 2 — Quality Threshold Slider (P0)
+
+**Component**: `<QualityThreshold>` (new, C10 in component-inventory)
+
+**Widget**: numeric input with step buttons — NOT a browser-native range slider (those are un-styleable and break the brutalist identity). Terminal-style: `quality [  0] [+] [-]` where the number is an editable monospace input (3ch wide). The `+` and `-` buttons step by 10. Direct typing allows any integer 0-100.
+
+**Placement**: TopBar, right of harmony selector, left of mode toggle. Groups with HarmonySelector as a "generation params" cluster.
+
+**Behavior**:
+- Value 0 (default) = no quality threshold (omit `minQuality` from request, backward-compatible)
+- Value 1-100 = send `minQuality` in the API request body
+- `maxRetries` is not exposed in UI (defaults to 5, as per backend default). Exposing it would add complexity without user value. If users need control, this is a Sprint 3 consideration.
+- When `minQuality > 0`, show `generationMeta.qualityScore` and `generationMeta.attempts` in a subtle status line: `quality: 78.3 · attempts: 3` rendered in `--fg-tertiary` at `--text-xs` below the PaletteDisplay composite score or in the TopBar seed area
+- Selection persists through regenerate cycles
+- Works with lock preservation and seed-derived primary
+
+**URL sync**: `?minQuality=50` added to URL. Default `0` is omitted.
+
+**Keyboard**: `q` toggles quality panel focus (focuses the numeric input). When focused, `Up/Down` arrows step by 10. `Enter` confirms and defocuses.
+
+**Accessibility**:
+- Input: `aria-label="minimum quality threshold"`, `type="number"`, `min="0"`, `max="100"`, `step="10"`
+- Step buttons: `aria-label="increase quality threshold"` / `"decrease quality threshold"`
+- Status readout: `aria-live="polite"` for `qualityScore` + `attempts` display
+
+### S2.3 Generation Meta Display
+
+**Component**: `<GenerationMeta>` (new, D7 in component-inventory)
+
+**Widget**: inline status line below PaletteDisplay composite score. Only visible when `generationMeta` is present in the last response.
+
+**Content**: `harmony: ${harmonyUsed} · quality: ${qualityScore} · attempts: ${attempts}`
+
+**Style**: `--font-mono`, `--text-xs`, `--fg-tertiary`. Fades to `--fg-secondary` on hover to indicate interactivity (click copies the full generationMeta JSON).
+
+**Data states**:
+- **Default**: visible when generationMeta exists
+- **Empty**: hidden (no generationMeta = Sprint 1-compatible response)
+- **Loading**: inherits PaletteDisplay loading state
+- **Error**: inherits PaletteDisplay error state
+
+### S2.4 Sprint 2 Success Criteria additions
+
+#### Tier 1 (blocking — Guard PASS requires all, Sprint 2)
+9. Harmony selector renders 7 options, default `auto`, persists through regenerate
+10. Quality threshold input accepts 0-100, default 0, persists through regenerate
+11. `?harmony=` and `?minQuality=` URL params round-trip correctly
+12. Both new controls are keyboard-accessible (h/H for harmony, q for quality)
+13. Both new interactive elements have 4 states (default/hover/active/focus-visible)
+14. generationMeta display shows qualityScore + attempts + harmonyUsed when present
+
+### S2.5 Updated keyboard shortcut contract
+
+Add to the Sprint 1 map (§6 in this PRD):
+| Key | Action |
+|-----|--------|
+| `h` | cycle harmony type forward |
+| `H` | cycle harmony type backward |
+| `q` | toggle quality threshold focus |
+
+Total bindings: 21 (was 18).
+
+### S2.6 Out of scope (Sprint 2)
+
+- `maxRetries` UI control (backend default 5 is sufficient)
+- Harmony type visualization (showing the color wheel with the harmony pattern)
+- Quality history graph
+- Quality auto-calibration
+
+---
 
 ## 1. What we're building
 

@@ -1,6 +1,34 @@
 # Page Map — color-palette-api frontend
 
 **Source**: `context/lead-reports/lab/page-map-report.md`
+**Sprint 2 amendment**: 2026-04-10
+
+---
+
+## Sprint 2 Amendment — Extended Query Params
+
+No new routes or pages. Sprint 2 adds 2 query parameters to the existing GeneratorPage.
+
+### Updated query param schema (Sprint 2 additions)
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `harmony` | `auto` \| `complementary` \| `analogous` \| `triadic` \| `split-complementary` \| `tetradic` \| `monochromatic` | `auto` (omitted) | harmony type for generation |
+| `minQuality` | integer 0-100 | `0` (omitted) | minimum quality threshold |
+
+### Updated URL example
+
+```
+/?seed=ABCDEFGHJKMNP&locked=0,2&mode=dark&harmony=triadic&minQuality=75
+```
+
+### URL update strategy (Sprint 2 additions)
+
+- **On harmony change**: `history.replaceState` with `&harmony=` update. `auto` is omitted.
+- **On quality change**: `history.replaceState` with `&minQuality=` update. `0` is omitted.
+- Same replaceState pattern as seed/locked/mode (no back-stack pollution).
+
+---
 
 ## Route table
 

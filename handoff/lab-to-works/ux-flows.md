@@ -1,6 +1,124 @@
 # UX Flows — color-palette-api frontend
 
 **Source**: `context/lead-reports/lab/ux-flow-report.md`
+**Sprint 2 amendment**: 2026-04-10
+
+---
+
+## Sprint 2 Amendment — Extended Flows
+
+### Flow A (amended) — Generate with Harmony + Quality → Paste
+
+Sprint 2 extends Flow A with two optional pre-generation configuration steps. The flow remains ≤30s because these steps are optional and fast (single click or keypress).
+
+```
+[LAND]
+  ↓ auto-generate with URL seed or random seed (~200ms)
+[PALETTE_READY]
+  ↓ (optional) [h] cycle harmony type in TopBar selector (instant, client-state)
+  ↓ (optional) [q] focus quality input → type threshold (instant, client-state)
+  ↓ [r] regenerate with harmony + quality params → API request includes harmonyHint + minQuality
+  ↓ API may retry internally (up to maxRetries); response includes generationMeta
+[PALETTE_READY_WITH_META]
+  ↓ generationMeta displayed below composite score
+  ↓ user reviews (3-8s cognitive)
+  ↓ [e] open export drawer → rest of Flow A unchanged
+[EXPORT_DRAWER_OPEN → COPY_FEEDBACK → DONE]
+```
+
+**Key behavioral details**:
+- Harmony and quality settings PERSIST across regenerates (store state, not reset)
+- URL updated with `?harmony=triadic&minQuality=50` via replaceState (no back-stack pollution)
+- If harmony or quality are set when user presses `r`, BOTH are sent to backend
+- If neither is set (defaults: auto/0), request is identical to Sprint 1 (no generationMeta in response)
+- Lock preservation (FB-011) works unchanged — locked colors are stitched back post-response regardless of harmony/quality params
+
+### Flow E — Tune Harmony Type (new, P0)
+
+```
+[PALETTE_READY]
+  ↓ user presses [h] → harmony cycles: auto → comp → anal → tri → split → tet → mono → auto
+  ↓ TopBar HarmonySelector visually updates (active tag changes)
+  ↓ store.harmonyHint updated
+  ↓ user presses [r] regenerate
+  ↓ API request: { harmonyHint: "triadic", ... }
+[PALETTE_READY_WITH_META]
+  ↓ ExplainPanel now reflects the constrained harmony
+  ↓ generationMeta.harmonyUsed = "triadic"
+  ↓ user compares palettes across harmony types (Flow C learning loop)
+```
+
+This flow amplifies Flow C (learn from palette) — the student can now explicitly select a harmony theory and see its effect, turning the tool into a more deliberate learning surface.
+
+### Flow F — Set Quality Threshold (new, P0)
+
+```
+[PALETTE_READY]
+  ↓ user presses [q] → focus moves to quality input
+  ↓ user types "75" or clicks [+] 8 times (10-step: 0→10→20→...→80, then type 75)
+  ↓ store.minQuality = 75
+  ↓ user presses [r] regenerate
+  ↓ API request: { minQuality: 75, ... }
+  ↓ backend retries up to 5 times for quality ≥ 75
+[PALETTE_READY_WITH_META]
+  ↓ generationMeta.qualityScore = 78.3
+  ↓ generationMeta.attempts = 3
+  ↓ user sees the quality and attempts count below the palette
+  ↓ if quality is satisfactory → proceed to export
+  ↓ if not → user may increase threshold or regenerate again
+```
+
+**Important**: the backend NEVER errors on unmet quality — it always returns the best palette found within the retry budget. The frontend does not need to handle a "quality unmet" error state.
+
+### Updated 4-state matrix (Sprint 2 additions)
+
+| Component | Default | Empty | Loading | Error |
+|-----------|---------|-------|---------|-------|
+| GenerationMeta | `harmony: X · quality: Y · attempts: Z` | hidden (meta is null) | inherits PaletteDisplay | inherits PaletteDisplay |
+
+### Updated keyboard shortcut map (Sprint 2 additions)
+
+#### Generation params
+| Key | Action |
+|-----|--------|
+| `h` | cycle harmony type forward |
+| `H` | cycle harmony type backward |
+| `q` | focus quality threshold input |
+
+Total bindings: **21** (was 18).
+
+### URL sync additions (Sprint 2)
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `harmony` | HarmonyHint enum | `auto` (omitted from URL) | harmony type for next generation |
+| `minQuality` | integer 0-100 | `0` (omitted from URL) | minimum quality threshold |
+
+`use-url-sync.ts` changes:
+- Parse `?harmony=` on mount → validate against 7 enum values → set `store.harmonyHint`
+- Parse `?minQuality=` on mount → validate 0-100 integer → set `store.minQuality`
+- Subscribe to `harmonyHint` and `minQuality` store changes → replaceState URL
+- Default values (auto / 0) are omitted from URL for clean sharing
+
+### Edge cases (Sprint 2)
+
+#### E8. Invalid harmony in URL
+- `?harmony=invalid` → silently ignored, defaults to `auto`
+- No error banner (graceful degradation)
+
+#### E9. Invalid minQuality in URL
+- `?minQuality=-5` or `?minQuality=200` → silently ignored, defaults to `0`
+- Non-numeric → silently ignored
+
+#### E10. UNKNOWN_HARMONY_HINT from API
+- Should not happen with valid enum values
+- If received: toast `invalid harmony type · defaulting to auto`, reset store to `auto`
+
+#### E11. INVALID_MIN_QUALITY from API
+- Should not happen with 0-100 validation
+- If received: toast `invalid quality threshold · resetting to 0`, reset store to `0`
+
+---
 
 ## Flow A — Generate → Paste (≤30s target)
 

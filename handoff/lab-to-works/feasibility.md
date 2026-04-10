@@ -1,10 +1,50 @@
 # Feasibility Report — color-palette-api frontend
 
+**Sprint 2 amendment**: 2026-04-10
+
 ## Summary
 
-- **Feasibility verdict**: **FEASIBLE** for Works → Guard pipeline under the stated stack and design doctrine, **CONDITIONAL** on resolution of U1 (auth) and U2 (Sprint 6 deployment) before Guard verification.
-- **Self-Eval (Phase 4)**: all mandatory checklists pass. Doctrine hard-block compliance verified by construction.
-- **Primary risk**: the 2 BLOCKING unknowns (U1, U2) from `ignorance-map.md` — both external to Frontend-Builder scope, callback-routed to Agentic.
+- **Feasibility verdict**: **FEASIBLE** for Works → Guard pipeline under the stated stack and design doctrine, **CONDITIONAL** on resolution of U1 (auth) before Guard live-verification.
+- **Sprint 2 scope**: 3 new components (C9 HarmonySelector, C10 QualityThreshold, D7 GenerationMeta), 2 new URL params, 3 new keyboard shortcuts, 2 new UX flows (E, F), 0 endpoint gaps.
+- **U2 (deployment gap) resolved**: backend v1.6.0 now deployed with Sprint 2 params confirmed live.
+- **U1 (auth) persists**: admin API key still rejected; Works continues with MSW stubs.
+- **Self-Eval (Phase 4)**: all mandatory checklists pass for both Sprint 1 + Sprint 2 amendments. Doctrine hard-block compliance verified by construction.
+- **Primary risk**: U1 (auth) — the only remaining external blocker.
+
+## Sprint 2 Self-Eval Addendum
+
+### New components
+- [x] C9 HarmonySelector: 4 interactive states designed (default/hover/active/focus-visible)
+- [x] C10 QualityThreshold: 4 interactive states designed
+- [x] D7 GenerationMeta: 4 data states designed (default/empty/loading/error)
+
+### Keyboard
+- [x] `h`/`H` for harmony cycling — no conflict with existing bindings
+- [x] `q` for quality focus — no conflict with existing bindings
+
+### URL sync
+- [x] `?harmony=` and `?minQuality=` defined with defaults that omit from URL
+- [x] Invalid URL values silently default (graceful degradation)
+
+### Endpoint gap
+- [x] 0 gaps — all Sprint 2 params verified live on v1.6.0
+
+### Doctrine
+- [x] HarmonySelector uses terminal-tag aesthetic, not dropdown — no form-builder cliche
+- [x] QualityThreshold uses numeric input, not browser range slider — stays brutalist
+- [x] No new tokens needed — all existing design system tokens are sufficient
+- [x] No vocabulary blacklist violations in Sprint 2 copy
+- [x] Identity preserved: both controls feel like "dials on a brass instrument"
+
+### Bundle impact
+- C9 HarmonySelector: ~2KB (7 buttons + radiogroup ARIA)
+- C10 QualityThreshold: ~2KB (input + 2 step buttons + validation)
+- D7 GenerationMeta: ~1KB (conditional render + copy handler)
+- Store additions: ~0.5KB (2 new fields + 3 setters)
+- use-url-sync additions: ~0.5KB (2 new param parsers)
+- **Total Sprint 2 addition**: ~6KB (well within the 69KB headroom from Sprint 1)
+
+---
 
 ---
 

@@ -1,6 +1,7 @@
 # Design System Spec — color-palette-api frontend
 
 **Source**: `context/lead-reports/lab/design-language-report.md` §2
+**Sprint 2 amendment**: 2026-04-10
 **Philosophy source**: 10-step narrative flow (Step 9 seed: blinking terminal caret; Step 10 stress test: extreme fatigue PASS)
 **Doctrine escape hatches**:
 - §1.4 purple-blue avoidance: explicitly NOT purple-blue; accent is mint-cyan (terminal success semantic)
@@ -340,6 +341,36 @@ Tailwind config reads these CSS variables directly via Tailwind 4's `@theme` dir
 ```
 
 Tailwind utilities like `bg-bg-base`, `text-fg-primary`, `font-mono` then resolve to these tokens.
+
+---
+
+---
+
+## Sprint 2 Amendment — Token Usage for New Components
+
+No new tokens introduced. Sprint 2 components (HarmonySelector, QualityThreshold, GenerationMeta) use the existing token vocabulary:
+
+### HarmonySelector token usage
+- Background: `--bg-base` (inactive tags), `--bg-raised` (hover)
+- Text: `--fg-secondary` (inactive), `--accent-primary` (active), `--fg-primary` (hover)
+- Border: `--border-base` (inactive bottom), `--border-accent` (active bottom, 2px)
+- Font: `--font-mono`, `--text-sm`
+- Motion: `--duration-fast` for hover state transition
+- Radius: `--radius-none` (sharp tags — terminal mode switch)
+
+### QualityThreshold token usage
+- Input: `--bg-raised`, `--border-base` (default), `--border-strong` (hover), `--border-accent` (focus)
+- Text: `--fg-secondary` (label "quality"), `--fg-primary` (number value)
+- Step buttons: `--bg-raised` (hover), `--border-base`
+- Font: `--font-mono`, `--text-sm` (label), `--text-base` (number)
+- Radius: `--radius-xs` (2px) on input and buttons
+
+### GenerationMeta token usage
+- Text: `--fg-tertiary` (default), `--fg-secondary` (hover)
+- Font: `--font-mono`, `--text-xs`
+- Motion: copy flash uses existing `flash-feedback` keyframe
+
+**Design-language-architect assessment**: both new controls are "instrument dials on the brass panel" (Step 1 metaphor). They extend the existing visual language without introducing new tokens. The abbreviated tag labels (`[comp]`, `[anal]`, `[tri]`) are terminal-command-like, consistent with the tool's caret identity. No doctrine tension detected.
 
 ---
 
