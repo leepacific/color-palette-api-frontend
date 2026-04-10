@@ -6,6 +6,8 @@ import type {
   CodeExportResponse,
   ColorblindMode,
   ContrastMatrixResource,
+  GenerationMeta,
+  HarmonyHint,
   PaletteExplanationResource,
   PaletteResource,
 } from '@/types/api';
@@ -31,6 +33,11 @@ interface AppState {
   // Seed + mode
   seed: string;
   mode: ThemeMode;
+
+  // Sprint 2: harmony + quality
+  harmonyHint: HarmonyHint;
+  minQuality: number;
+  generationMeta: GenerationMeta | null;
 
   // Analysis
   contrastMatrix: ContrastMatrixResource | null;
@@ -66,6 +73,9 @@ interface AppState {
 
   setSeed: (s: string) => void;
   setMode: (m: ThemeMode) => void;
+  setHarmonyHint: (h: HarmonyHint) => void;
+  setMinQuality: (q: number) => void;
+  setGenerationMeta: (m: GenerationMeta | null) => void;
 
   setContrastMatrix: (m: ContrastMatrixResource | null) => void;
   setContrastLoading: () => void;
@@ -102,6 +112,10 @@ export const useStore = create<AppState>((set, get) => ({
 
   seed: randomSeed(),
   mode: 'dark',
+
+  harmonyHint: 'auto',
+  minQuality: 0,
+  generationMeta: null,
 
   contrastMatrix: null,
   contrastState: 'default',
@@ -147,6 +161,9 @@ export const useStore = create<AppState>((set, get) => ({
     set({ mode: m });
     document.documentElement.setAttribute('data-theme', m);
   },
+  setHarmonyHint: (h) => set({ harmonyHint: h }),
+  setMinQuality: (q) => set({ minQuality: Math.max(0, Math.min(100, q)) }),
+  setGenerationMeta: (m) => set({ generationMeta: m }),
 
   setContrastMatrix: (m) =>
     set({ contrastMatrix: m, contrastState: 'default', contrastError: null }),

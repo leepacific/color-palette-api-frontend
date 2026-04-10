@@ -1,3 +1,24 @@
+# Deploy Plan — color-palette-api frontend · Sprint 2 Amendment
+
+## Sprint 2 deploy delta
+
+No infrastructure changes. Sprint 2 is purely additive frontend code (3 new components, extended store/API/URL sync). Same build command, same env vars, same static host.
+
+### New backend requirement
+- Backend must support v1.6.0 API (Sprint 2 amendment): `harmonyHint`, `minQuality`, `maxRetries` params on `POST /api/v1/theme/generate`, and `generationMeta` in response.
+- If backend is still on v1.5.0, the new params are silently ignored (additive); `generationMeta` will be absent and D7 (GenerationMeta) will stay hidden. No crash, no error.
+
+### Post-deploy Sprint 2 verification
+1. Load `/?seed=ABCDEFGHJKMNP&harmony=triadic&minQuality=50`
+2. Verify HarmonySelector shows "tri" as selected
+3. Verify QualityThreshold shows 50
+4. Press `r` to regenerate
+5. If backend supports v1.6.0: verify GenerationMeta line appears below palette
+6. Press `h` 3 times — verify harmony cycles through comp/anal/tri
+7. Press `q` — verify quality input is focused
+
+---
+
 # Deploy Plan — color-palette-api frontend · Sprint 1
 
 ## Target environment

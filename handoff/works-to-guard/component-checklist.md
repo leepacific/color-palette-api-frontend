@@ -1,3 +1,27 @@
+# Component Checklist — color-palette-api frontend · Sprint 2 Amendment
+
+## Sprint 2 New Components
+
+### Interactive (2 new, 4-state)
+
+| # | Spec | Status | File | D | H | A | F |
+|---|------|--------|------|---|---|---|---|
+| C9 | HarmonySelector | done | `src/components/HarmonySelector.tsx` | yes | yes | yes | yes |
+| C10 | QualityThreshold | done | `src/components/QualityThreshold.tsx` | yes | yes | yes | yes |
+
+### Data-display (1 new, 4-state)
+
+| # | Spec | Status | File | Def | E | L | Er |
+|---|------|--------|------|-----|---|---|----|
+| D7 | GenerationMeta | done | `src/components/GenerationMeta.tsx` | yes | yes | yes | yes |
+
+### Sprint 2 Totals
+- **25/26 components implemented** (SeedInput C6 still deferred)
+- **Interactive state coverage: 10/11** (C6 deferred)
+- **Data state coverage: 7/7**
+
+---
+
 # Component Checklist — color-palette-api frontend · Sprint 1
 
 **Source spec**: `handoff/lab-to-works/component-inventory.md` (23 components)

@@ -9,7 +9,8 @@ import {
   exportCurrentFormat,
   regeneratePalette,
 } from '@/lib/actions';
-import { CODE_EXPORT_FORMATS } from '@/types/api';
+import { CODE_EXPORT_FORMATS, HARMONY_HINTS } from '@/types/api';
+import { focusQualityInput } from '@/components/QualityThreshold';
 
 type ActionFn = () => void;
 
@@ -102,6 +103,22 @@ export function useKeyboardShortcuts(): void {
           void copyText(s.exportResponse.code, `${s.exportResponse.format} copied`);
         }
       },
+
+      // Sprint 2: Harmony cycle + Quality focus
+      h: () => {
+        const s = useStore.getState();
+        const idx = HARMONY_HINTS.indexOf(s.harmonyHint);
+        const next = HARMONY_HINTS[(idx + 1) % HARMONY_HINTS.length];
+        s.setHarmonyHint(next);
+      },
+      H: () => {
+        const s = useStore.getState();
+        const idx = HARMONY_HINTS.indexOf(s.harmonyHint);
+        const next =
+          HARMONY_HINTS[(idx - 1 + HARMONY_HINTS.length) % HARMONY_HINTS.length];
+        s.setHarmonyHint(next);
+      },
+      q: () => focusQualityInput(),
 
       // Accessibility
       x: () => useStore.getState().cycleColorblind(1),

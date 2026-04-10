@@ -1,3 +1,26 @@
+# Page Checklist — color-palette-api frontend · Sprint 2 Amendment
+
+## Sprint 2 URL Changes
+
+### New URL params
+- `?harmony=triadic` — sets harmony hint (omitted when "auto")
+- `?minQuality=50` — sets minimum quality threshold (omitted when 0)
+
+### Full URL shape
+`/?seed=ABCDEFGHJKMNP&locked=0,2&mode=dark&harmony=triadic&minQuality=50`
+
+### New components on GeneratorPage
+- [x] HarmonySelector (C9) integrated in TopBar, between seed label and spacer
+- [x] QualityThreshold (C10) integrated in TopBar, after HarmonySelector
+- [x] GenerationMeta (D7) placed below PaletteDisplay, above ComponentPreview
+
+### New keyboard shortcuts
+- [x] `h` — cycle harmony forward (auto -> comp -> anal -> tri -> split -> tet -> mono -> auto)
+- [x] `H` (Shift+h) — cycle harmony backward
+- [x] `q` — focus quality input
+
+---
+
 # Page Checklist — color-palette-api frontend · Sprint 1
 
 **Source spec**: `handoff/lab-to-works/page-map.md`

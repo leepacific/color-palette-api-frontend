@@ -7,6 +7,7 @@ import { ContrastMatrix } from '@/components/ContrastMatrix';
 import { ExplainPanel } from '@/components/ExplainPanel';
 import { ComponentPreview } from '@/components/ComponentPreview';
 import { TopBar } from '@/components/TopBar';
+import { GenerationMeta } from '@/components/GenerationMeta';
 import { KeycapHint } from '@/components/primitives/KeycapHint';
 
 export function GeneratorPage() {
@@ -59,6 +60,7 @@ export function GeneratorPage() {
           </div>
 
           <PaletteDisplay />
+          <GenerationMeta />
 
           <div className="mt-6">
             <ComponentPreview />

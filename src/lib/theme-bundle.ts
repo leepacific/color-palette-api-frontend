@@ -69,8 +69,9 @@ export function themeBundleToPaletteResource(
     colors: pickFiveColors(bundle),
     compositeScore: bundle.quality?.minScore ?? 80,
     metrics: deriveMetrics(bundle),
-    harmonyType: 'themeBundle',
-    iterations: 1,
+    harmonyType: bundle.generationMeta?.harmonyUsed ?? 'themeBundle',
+    iterations: bundle.generationMeta?.attempts ?? 1,
     seed: bundle.seed,
+    generationMeta: bundle.generationMeta,
   };
 }

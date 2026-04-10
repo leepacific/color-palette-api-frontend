@@ -95,6 +95,9 @@ export interface ThemeGenerateRequest {
   mode?: 'light' | 'dark' | 'both';
   semanticTokens?: boolean;
   seed?: string;
+  harmonyHint?: string;
+  minQuality?: number;
+  maxRetries?: number;
 }
 
 export const api = {

@@ -87,12 +87,20 @@ export async function regeneratePalette(seed?: string) {
   const lockedFlags = store.locked;
   store.setPaletteLoading();
   try {
-    const pal = await api.generateTheme({
+    // Sprint 2: include harmonyHint + minQuality when non-default.
+    const reqBody: Parameters<typeof api.generateTheme>[0] = {
       primary: requestPrimary,
       mode: 'both',
       semanticTokens: true,
       seed: requestSeed,
-    });
+    };
+    if (store.harmonyHint !== 'auto') {
+      reqBody.harmonyHint = store.harmonyHint;
+    }
+    if (store.minQuality > 0) {
+      reqBody.minQuality = store.minQuality;
+    }
+    const pal = await api.generateTheme(reqBody);
     // Stitch locked colors back into the new palette at their original indices.
     if (prevColors && lockedFlags.some(Boolean)) {
       pal.colors = pal.colors.map((c, i) =>
@@ -100,6 +108,8 @@ export async function regeneratePalette(seed?: string) {
       );
     }
     store.setPalette(pal);
+    // Sprint 2: persist generationMeta (may be undefined → null).
+    store.setGenerationMeta(pal.generationMeta ?? null);
     // Prefer the backend-returned seed (authoritative); fall back to the
     // request seed (always defined). Guaranteed non-null.
     const nextSeed = pal.seed ?? requestSeed;

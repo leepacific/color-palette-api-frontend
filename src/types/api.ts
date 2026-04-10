@@ -35,6 +35,7 @@ export interface PaletteResource {
   harmonyType: string;
   iterations?: number;
   seed?: string;
+  generationMeta?: GenerationMeta;
 }
 
 // --- Loop 3 FR-4: /theme/generate actually returns themeBundle, NOT PaletteResource.
@@ -81,6 +82,7 @@ export interface ThemeBundleResource {
   warnings?: string[];
   framework?: string;
   generatedAt?: string;
+  generationMeta?: GenerationMeta;
 }
 
 export type CodeExportFormat =
@@ -248,6 +250,44 @@ export const COLORBLIND_MODES: ColorblindMode[] = [
   'achromatopsia',
   'achromatomaly',
 ];
+
+// --- Sprint 2: harmony hint + generation meta types ---
+
+export type HarmonyHint =
+  | 'auto'
+  | 'complementary'
+  | 'analogous'
+  | 'triadic'
+  | 'split-complementary'
+  | 'tetradic'
+  | 'monochromatic';
+
+export const HARMONY_HINTS: HarmonyHint[] = [
+  'auto',
+  'complementary',
+  'analogous',
+  'triadic',
+  'split-complementary',
+  'tetradic',
+  'monochromatic',
+];
+
+/** Short display labels for the segmented tag row (C9). */
+export const HARMONY_LABELS: Record<HarmonyHint, string> = {
+  auto: 'auto',
+  complementary: 'comp',
+  analogous: 'anal',
+  triadic: 'tri',
+  'split-complementary': 'split',
+  tetradic: 'tet',
+  monochromatic: 'mono',
+};
+
+export interface GenerationMeta {
+  qualityScore: number;
+  attempts: number;
+  harmonyUsed: string;
+}
 
 export const CODE_EXPORT_FORMATS: CodeExportFormat[] = [
   'tailwind-config',

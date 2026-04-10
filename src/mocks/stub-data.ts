@@ -107,6 +107,8 @@ export function stubThemeBundle(opts: {
   primary?: string;
   seed?: string;
   mode?: 'light' | 'dark' | 'both';
+  harmonyHint?: string;
+  minQuality?: number;
 } = {}): ThemeBundleResource {
   const primaryHex = opts.primary ?? '#0F172A';
   const secondaryHex = '#64748B';
@@ -143,6 +145,16 @@ export function stubThemeBundle(opts: {
     warnings: [],
     framework: 'stub',
     generatedAt: nowIso(),
+    // Sprint 2: include generationMeta when harmonyHint or minQuality is specified.
+    ...(opts.harmonyHint || opts.minQuality
+      ? {
+          generationMeta: {
+            qualityScore: opts.minQuality ?? 82,
+            attempts: opts.minQuality ? 3 : 1,
+            harmonyUsed: opts.harmonyHint ?? 'auto',
+          },
+        }
+      : {}),
   };
 }
 

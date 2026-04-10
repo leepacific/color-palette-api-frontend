@@ -1,3 +1,33 @@
+# Changelog — color-palette-api frontend · Sprint 2 Amendment
+
+## 0.2.0 — 2026-04-10 · Sprint 2 — HarmonySelector + QualityThreshold + GenerationMeta
+
+Sprint 2 adds three new components to the palette generator UI, extending the backend v1.6.0 API contract.
+
+### C9 — HarmonySelector (Interactive)
+Segmented inline tag row in TopBar. 7 harmony types: auto, comp, anal, tri, split, tet, mono. Monospace, border-based, instrument-dial aesthetic. Keyboard: `h` cycles forward, `Shift+H` cycles backward. URL sync via `?harmony=` param (omitted when "auto"). 4 interactive states: default/hover/active(selected)/focus-visible.
+
+### C10 — QualityThreshold (Interactive)
+Numeric input with +/- buttons in TopBar. Range 0-100, step=10, default 0. Keyboard: `q` focuses input, then arrow up/down or +/- to adjust. URL sync via `?minQuality=` param (omitted when 0). 4 interactive states: default/hover/active(focused)/focus-visible.
+
+### D7 — GenerationMeta (Data-dependent)
+Conditional one-line status below PaletteDisplay. Format: `harmony: triadic · quality: 71 · attempts: 1`. Visible only when API response includes `generationMeta` (triggered by non-default harmony or quality params). Click-to-copy. 4 data states: default(shown), empty(hidden), loading(caret), error(text).
+
+### Store + API + URL sync
+- Zustand store extended with `harmonyHint: HarmonyHint`, `minQuality: number`, `generationMeta: GenerationMeta | null`
+- `regeneratePalette()` now includes `harmonyHint` (when non-auto) and `minQuality` (when >0) in API request body
+- `use-url-sync.ts` reads/writes `?harmony=` and `?minQuality=` params bidirectionally
+- Theme-bundle adapter passes `generationMeta` through from backend response
+
+### Tests (11 new, 25 total)
+- HarmonySelector: h key forward cycle, Shift+H backward cycle, click changes selected state, harmony reflected in regenerate + URL
+- QualityThreshold: +/- buttons adjust value, value reflected in URL, q key focuses input
+- GenerationMeta: conditional display after regenerate with harmony param, hidden by default, click-to-copy
+- URL round-trip: `?seed=X&harmony=triadic&minQuality=50` survives reload (§6a direction 1)
+- §6b strict mode: 3 new allow-list entries (self-click auto, min-clamped decrement, input click)
+
+---
+
 # Changelog — color-palette-api frontend · Sprint 1
 
 ## 0.1.6 — 2026-04-09 · Sprint 1 Loop 7 fix (FB-010 colorblind toggle wiring + §6b strict-mode boost) — FINAL LOOP

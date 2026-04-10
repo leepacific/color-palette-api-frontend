@@ -1,3 +1,39 @@
+# Build Info — color-palette-api frontend · Sprint 2 Amendment
+
+## Sprint 2 Changes (2026-04-10)
+
+- **3 new components**: HarmonySelector (C9), QualityThreshold (C10), GenerationMeta (D7)
+- **Store extended**: `harmonyHint`, `minQuality`, `generationMeta` fields + setters
+- **API client extended**: `harmonyHint`, `minQuality`, `maxRetries` params on `ThemeGenerateRequest`
+- **URL sync extended**: `?harmony=` + `?minQuality=` bidirectional sync
+- **Keyboard shortcuts extended**: `h`/`H` (harmony cycle), `q` (focus quality input)
+- **MSW stubs extended**: `stubThemeBundle` accepts `harmonyHint`/`minQuality`, returns `generationMeta`
+- **Theme-bundle adapter extended**: passes `generationMeta` through to `PaletteResource`
+- **Types extended**: `HarmonyHint`, `GenerationMeta`, `HARMONY_HINTS`, `HARMONY_LABELS` exports
+- **Test suite extended**: 11 new tests in `interactive-coverage.spec.ts` (25 total, up from 14)
+- **Build**: clean, 0 errors, 0 warnings
+
+### New files
+- `src/components/HarmonySelector.tsx`
+- `src/components/QualityThreshold.tsx`
+- `src/components/GenerationMeta.tsx`
+
+### Modified files
+- `src/types/api.ts` — Sprint 2 types
+- `src/state/store.ts` — 3 new fields + 3 setters
+- `src/lib/actions.ts` — pass harmony/quality to API, store generationMeta
+- `src/lib/api-client.ts` — extended ThemeGenerateRequest
+- `src/lib/theme-bundle.ts` — pass generationMeta through adapter
+- `src/hooks/use-url-sync.ts` — harmony + minQuality params
+- `src/hooks/use-keyboard-shortcuts.ts` — h/H/q bindings
+- `src/components/TopBar.tsx` — integrate HarmonySelector + QualityThreshold
+- `src/pages/GeneratorPage.tsx` — integrate GenerationMeta
+- `src/mocks/stub-data.ts` — Sprint 2 stub support
+- `src/mocks/handlers.ts` — pass new params through
+- `tests/interactive-coverage.spec.ts` — 11 new tests + 3 allow-list entries
+
+---
+
 # Build Info — color-palette-api frontend · Sprint 1
 
 **Project**: color-palette-api frontend

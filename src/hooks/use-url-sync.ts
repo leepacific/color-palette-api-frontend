@@ -14,6 +14,8 @@ import { useEffect, useRef } from 'react';
 import { useStore } from '@/state/store';
 import type { ThemeMode } from '@/state/store';
 import { isValidSeed } from '@/lib/seed';
+import { HARMONY_HINTS } from '@/types/api';
+import type { HarmonyHint } from '@/types/api';
 
 const LOCKED_COUNT = 5;
 
@@ -36,6 +38,19 @@ function parseMode(raw: string | null): ThemeMode | null {
   return null;
 }
 
+function parseHarmony(raw: string | null): HarmonyHint | null {
+  if (!raw) return null;
+  if ((HARMONY_HINTS as readonly string[]).includes(raw)) return raw as HarmonyHint;
+  return null;
+}
+
+function parseMinQuality(raw: string | null): number | null {
+  if (!raw) return null;
+  const n = Number.parseInt(raw, 10);
+  if (Number.isNaN(n) || n < 0 || n > 100) return null;
+  return n;
+}
+
 /**
  * Serialize the current store slice into a URL, preserving any unrelated
  * query params. Omits default values (mode=dark, empty locked) to keep URLs
@@ -46,6 +61,8 @@ export function buildUrlFromState(
   seed: string,
   locked: boolean[],
   mode: ThemeMode,
+  harmony?: HarmonyHint,
+  minQuality?: number,
 ): string {
   const url = new URL(base);
   if (seed && isValidSeed(seed)) {
@@ -66,6 +83,17 @@ export function buildUrlFromState(
   } else {
     url.searchParams.delete('mode');
   }
+  // Sprint 2: harmony + minQuality — omit defaults to keep URLs short.
+  if (harmony && harmony !== 'auto') {
+    url.searchParams.set('harmony', harmony);
+  } else {
+    url.searchParams.delete('harmony');
+  }
+  if (minQuality && minQuality > 0) {
+    url.searchParams.set('minQuality', String(minQuality));
+  } else {
+    url.searchParams.delete('minQuality');
+  }
   return url.toString();
 }
 
@@ -77,6 +105,8 @@ export function applyUrlToStore(search: string): {
   seedApplied: boolean;
   lockedApplied: boolean;
   modeApplied: boolean;
+  harmonyApplied: boolean;
+  minQualityApplied: boolean;
 } {
   const params = new URLSearchParams(search);
   const store = useStore.getState();
@@ -103,7 +133,20 @@ export function applyUrlToStore(search: string): {
     store.setMode(mode);
   }
 
-  return { seedApplied, lockedApplied, modeApplied };
+  // Sprint 2: harmony + minQuality URL params.
+  const harmony = parseHarmony(params.get('harmony'));
+  const harmonyApplied = harmony !== null;
+  if (harmony) {
+    store.setHarmonyHint(harmony);
+  }
+
+  const minQuality = parseMinQuality(params.get('minQuality'));
+  const minQualityApplied = minQuality !== null;
+  if (minQuality !== null) {
+    store.setMinQuality(minQuality);
+  }
+
+  return { seedApplied, lockedApplied, modeApplied, harmonyApplied, minQualityApplied };
 }
 
 /**
@@ -121,14 +164,16 @@ export function useUrlSync(): void {
     applyUrlToStore(window.location.search);
   }
 
-  // Subscribe to seed/locked/mode changes and replaceState the URL.
+  // Subscribe to seed/locked/mode/harmony/minQuality changes and replaceState the URL.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const unsubscribe = useStore.subscribe((state, prev) => {
       if (
         state.seed === prev.seed &&
         state.locked === prev.locked &&
-        state.mode === prev.mode
+        state.mode === prev.mode &&
+        state.harmonyHint === prev.harmonyHint &&
+        state.minQuality === prev.minQuality
       ) {
         return;
       }
@@ -137,6 +182,8 @@ export function useUrlSync(): void {
         state.seed,
         state.locked,
         state.mode,
+        state.harmonyHint,
+        state.minQuality,
       );
       if (next !== window.location.href) {
         window.history.replaceState(null, '', next);

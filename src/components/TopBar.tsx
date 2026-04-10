@@ -1,6 +1,8 @@
 import { useStore } from '@/state/store';
 import { KeycapHint } from './primitives/KeycapHint';
 import { BlinkingCaret } from './primitives/BlinkingCaret';
+import { HarmonySelector } from './HarmonySelector';
+import { QualityThreshold } from './QualityThreshold';
 
 export function TopBar() {
   const seed = useStore((s) => s.seed);
@@ -19,6 +21,9 @@ export function TopBar() {
           [{seed}]
         </span>
       </div>
+
+      <HarmonySelector />
+      <QualityThreshold />
 
       <div className="flex-1" />
 

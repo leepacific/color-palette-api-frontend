@@ -39,6 +39,8 @@ export const handlers = [
         seed?: string;
         mode?: 'light' | 'dark' | 'both';
         semanticTokens?: boolean;
+        harmonyHint?: string;
+        minQuality?: number;
       };
       await delay(180);
       return HttpResponse.json(
@@ -46,6 +48,8 @@ export const handlers = [
           primary: body?.primary,
           seed: body?.seed,
           mode: body?.mode,
+          harmonyHint: body?.harmonyHint,
+          minQuality: body?.minQuality,
         }),
       );
     }),
