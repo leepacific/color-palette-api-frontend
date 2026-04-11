@@ -36,4 +36,4 @@ EXPOSE 3000
 
 # `-s` enables SPA fallback (all routes → index.html)
 # `-l` listen address; Railway sets PORT
-CMD sh -c "serve -s dist -l ${PORT}"
+CMD sh -c "serve -s dist -l tcp://0.0.0.0:${PORT}"
