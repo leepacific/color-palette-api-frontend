@@ -1,9 +1,9 @@
 // Bridge: store + api client + error taxonomy → UX side effects.
 
 import { api, ApiError } from './api-client';
+import type { PaletteGenerateRequest } from './api-client';
 import { useStore } from '@/state/store';
 import { randomSeed } from '@/lib/seed';
-import { seedToPrimary } from '@/lib/seed-to-primary';
 import type { CodeExportFormat } from '@/types/api';
 
 function toAppError(e: unknown, fallbackType = 'api_error'): {
@@ -68,39 +68,27 @@ export async function regeneratePalette(seed?: string) {
   // seed (e.g. keyboard `r`), mint a fresh one client-side and pass it to the
   // API — this guarantees the backend response + URL + store agree.
   const requestSeed = seed ?? randomSeed();
-  // FB-009 — Derive a dramatic primary deterministically from the seed on
-  // every regenerate. The backend's seed-driven OKLCH perturbation (FB-008)
-  // is too subtle on low-chroma inputs like the old default #0F172A, so we
-  // make the primary itself vary per seed. URL round-trip still works because
-  // the primary is a pure function of the seed — loading /?seed=XYZ on a
-  // fresh session will derive the identical primary and hit the same backend
-  // branch, producing the byte-identical palette required by PRD Tier 1 #6.
-  const requestPrimary = seedToPrimary(requestSeed);
-  // FB-011 (Direct Fix, Loop 7+) — Preserve locked colors through regenerate.
-  // Lock state was wired into the store at Loop 1 but `setPalette` overwrote
-  // every color unconditionally, so the `l` toggle had no effect on the user's
-  // visible output. Now we capture the previous palette + locked indices BEFORE
-  // the API call and stitch the locked colors back in afterwards. URL/seed
-  // round-trip is unaffected because the seed → primary → backend chain is
-  // unchanged; only the post-response merge step is added.
+  // FB-011: Preserve locked colors through regenerate.
   const prevColors = store.palette?.colors;
   const lockedFlags = store.locked;
   store.setPaletteLoading();
   try {
-    // Sprint 2: include harmonyHint + minQuality when non-default.
-    const reqBody: Parameters<typeof api.generateTheme>[0] = {
-      primary: requestPrimary,
-      mode: 'both',
-      semanticTokens: true,
+    // CB-003 fix: switched from /theme/generate to /palette/generate.
+    // The seeded path now runs a deterministic quality loop (same seed →
+    // same qualifying palette), so URL round-trip (Flow D) works.
+    // All FB-009 quality gates (intra-ΔE ≥ 15, composite ≥ minScore)
+    // apply on this path.
+    const reqBody: PaletteGenerateRequest = {
+      count: 5,
       seed: requestSeed,
     };
     if (store.harmonyHint !== 'auto') {
-      reqBody.harmonyHint = store.harmonyHint;
+      reqBody.harmony = store.harmonyHint;
     }
     if (store.minQuality > 0) {
-      reqBody.minQuality = store.minQuality;
+      reqBody.minScore = store.minQuality;
     }
-    const pal = await api.generateTheme(reqBody);
+    const pal = await api.generatePalette(reqBody);
     // Stitch locked colors back into the new palette at their original indices.
     if (prevColors && lockedFlags.some(Boolean)) {
       pal.colors = pal.colors.map((c, i) =>
@@ -108,16 +96,11 @@ export async function regeneratePalette(seed?: string) {
       );
     }
     store.setPalette(pal);
-    // Sprint 2: persist generationMeta (may be undefined → null).
     store.setGenerationMeta(pal.generationMeta ?? null);
-    // Prefer the backend-returned seed (authoritative); fall back to the
-    // request seed (always defined). Guaranteed non-null.
     const nextSeed = pal.seed ?? requestSeed;
     if (nextSeed !== store.seed) {
       store.setSeed(nextSeed);
     }
-    // Fire and forget the 2 analysis calls — use the merged hex list so the
-    // contrast matrix and explanation reflect what the user actually sees.
     const hexes = pal.colors.map((c) => c.hex);
     void refreshContrastMatrix(hexes);
     void refreshExplanation(hexes, nextSeed);

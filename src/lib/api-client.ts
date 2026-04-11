@@ -100,15 +100,30 @@ export interface ThemeGenerateRequest {
   maxRetries?: number;
 }
 
+export interface PaletteGenerateRequest {
+  count?: number;
+  harmony?: string;
+  seed?: string;
+  minScore?: number;
+  maxIterations?: number;
+}
+
 export const api = {
   async randomPalette(): Promise<PaletteResource> {
     return apiFetch<PaletteResource>('/api/v1/palette/random');
   },
-  // Loop 3 FR-4: /theme/generate returns ThemeBundleResource (not PaletteResource).
-  // We fetch the raw themeBundle, then adapt it to a PaletteResource at the
-  // boundary so all 11 Sprint 1 consumer sites (swatch grid, contrast matrix,
-  // explain panel, keyboard shortcuts, export flow) keep working untouched.
-  // See src/lib/theme-bundle.ts for the adapter design rationale.
+  // CB-003 fix: switched from /theme/generate to /palette/generate.
+  // /palette/generate now has a deterministic seeded quality loop (same
+  // seed → same RNG → same qualifying palette), so seed round-trip works.
+  // Response is PaletteResource directly — no adapter needed.
+  async generatePalette(req: PaletteGenerateRequest): Promise<PaletteResource> {
+    return apiFetch<PaletteResource>('/api/v1/palette/generate', {
+      method: 'POST',
+      body: JSON.stringify(req),
+      idempotent: true,
+    });
+  },
+  // Kept for backward compatibility (export code still uses theme endpoint).
   async generateTheme(req: ThemeGenerateRequest): Promise<PaletteResource> {
     const bundle = await apiFetch<ThemeBundleResource>('/api/v1/theme/generate', {
       method: 'POST',
